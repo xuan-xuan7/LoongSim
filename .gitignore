@@ -1,0 +1,26 @@
+.DS_Store
+Thumbs.db
+
+# Java/Gradle local outputs
+logisim/.gradle/
+logisim/build/
+logisim/out/
+
+# Native build outputs
+**/CMakeCache.txt
+**/CMakeFiles/
+**/__pycache__/
+**/.pytest_cache/
+fpga/nextpnr-xilinx/build/
+fpga/openFPGALoader/build/
+fpga/prjxray/build/
+fpga/yosys/build/
+**/build-oldworld/
+
+# Local bootstrap and release outputs
+bootstrap/work/
+local/
+dist/
+
+# Large reference installer kept outside Git history
+fpga/loongblock_*.deb
