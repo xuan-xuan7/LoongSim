@@ -15,7 +15,6 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
-import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
@@ -28,9 +27,8 @@ final class LoongsonBrandBar extends JPanel {
   private static final Color BORDER = new Color(221, 226, 234);
   private static final Color RED = new Color(218, 30, 42);
   private static final Color RED_SOFT = new Color(255, 237, 238);
-  private FpgaWorkbench workbench;
 
-  LoongsonBrandBar(final Frame owner) {
+  LoongsonBrandBar() {
     super(new BorderLayout());
     setOpaque(false);
     setBorder(BorderFactory.createEmptyBorder(9, 20, 8, 20));
@@ -77,17 +75,6 @@ final class LoongsonBrandBar extends JPanel {
     version.setBackground(RED_SOFT);
     version.setBorder(BorderFactory.createEmptyBorder(5, 9, 5, 9));
     actions.add(version);
-    actions.add(Box.createHorizontalStrut(AppPreferences.getScaled(18)));
-    JButton fpgaButton = new JButton("FPGA 实现");
-    fpgaButton.setForeground(Color.WHITE);
-    fpgaButton.setBackground(RED);
-    fpgaButton.setFocusable(false);
-    fpgaButton.setBorder(BorderFactory.createEmptyBorder(6, 13, 6, 13));
-    fpgaButton.addActionListener(event -> {
-      if (workbench == null || !workbench.isDisplayable()) workbench = new FpgaWorkbench(owner);
-      workbench.showWorkbench();
-    });
-    actions.add(fpgaButton);
     add(actions, BorderLayout.EAST);
   }
 

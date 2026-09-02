@@ -409,7 +409,7 @@ public class Frame extends LFrame implements LocaleListener {
 
     mainRegion = new VerticalSplitPane(leftRegion, rightPanel, AppPreferences.WINDOW_MAIN_SPLIT.get().doubleValue());
 
-    getContentPane().add(new LoongsonBrandBar(this), BorderLayout.NORTH);
+    getContentPane().add(new LoongsonBrandBar(), BorderLayout.NORTH);
     getContentPane().add(mainRegion, BorderLayout.CENTER);
 
     computeTitle();
