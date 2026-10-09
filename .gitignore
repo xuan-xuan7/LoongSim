@@ -21,7 +21,6 @@ fpga/yosys/build/
 bootstrap/work/
 local/
 dist/
-packaging/windows/build/
 
 # Large reference installer kept outside Git history
 fpga/loongblock_*.deb
