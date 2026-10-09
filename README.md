@@ -88,3 +88,25 @@ cd logisim
 ```
 
 构建结果位于 `logisim/build/libs/`。运行时需要 Java 11 或更高版本。
+
+## Windows 安装包
+
+Windows x64 安装包的构建定义位于 `packaging/windows/`。生成的安装程序会内置
+Eclipse Temurin Java 11 运行时，因此目标 Windows 机器不需要预先安装 Java。
+
+在 macOS 上安装 NSIS 后执行：
+
+```bash
+brew install makensis
+./packaging/windows/build-installer.sh
+```
+
+输出文件：
+
+```text
+dist/LoongSim-1.0.0-logisim-only-windows-x64-setup.exe
+dist/LoongSim-1.0.0-logisim-only-windows-x64-setup.exe.sha256
+```
+
+Windows 用户双击 `setup.exe` 即可安装。安装程序默认使用当前用户目录，不需要管理员权限，
+会创建桌面和开始菜单快捷方式，并在 Windows 应用列表中注册卸载入口。
