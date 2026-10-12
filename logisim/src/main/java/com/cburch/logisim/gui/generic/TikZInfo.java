@@ -43,6 +43,7 @@ import java.awt.geom.Point2D;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.text.AttributedCharacterIterator;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -1308,7 +1309,7 @@ public class TikZInfo implements Cloneable {
   
   public void WriteFile(File outfile) throws IOException {
     optimize();
-    FileWriter writer = new FileWriter(outfile);
+    FileWriter writer = new FileWriter(outfile, StandardCharsets.UTF_8);
     writer.write("% Important: If latex complains about unicode characters, please use \"\\usepackage[utf8x]{inputenc}\" in your preamble\n");
     writer.write("% You can change the size of the picture by putting it into the construct:\n");
     writer.write("% 1) \\resizebox{10cm}{!}{\"below picture\"} to scale horizontally to 10 cm\n");

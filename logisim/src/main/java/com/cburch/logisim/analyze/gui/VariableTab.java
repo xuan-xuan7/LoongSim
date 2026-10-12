@@ -341,17 +341,9 @@ public class VariableTab extends AnalyzerTab {
     int err = OK;
     if (text.length() == 0) {
       err = EMPTY;
-    } else if (!Character.isJavaIdentifierStart(text.charAt(0))) {
+    } else if (!Character.isLetter(text.codePointAt(0))) {
       error.setText(S.get("variableStartError"));
       err = BAD_NAME;
-    } else {
-      for (int i = 1; i < text.length() && err == OK; i++) {
-        char c = text.charAt(i);
-        if (!Character.isJavaIdentifierPart(c)) {
-          error.setText(S.fmt("variablePartError", "" + c));
-          err = BAD_NAME;
-        }
-      }
     }
     if (err == OK) {
       String message = SyntaxChecker.getErrorMessage(text);

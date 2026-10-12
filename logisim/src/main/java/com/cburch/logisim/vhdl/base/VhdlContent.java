@@ -44,6 +44,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -78,7 +79,7 @@ public class VhdlContent extends HdlContent {
 
   private static String loadTemplate() {
     InputStream input = VhdlContent.class.getResourceAsStream(RESOURCE);
-    BufferedReader in = new BufferedReader(new InputStreamReader(input));
+    BufferedReader in = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8));
 
     StringBuilder tmp = new StringBuilder();
     String line;

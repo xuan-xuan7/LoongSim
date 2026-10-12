@@ -31,6 +31,7 @@ package com.cburch.logisim.gui.log;
 import com.cburch.logisim.data.Value;
 import com.cburch.logisim.util.UniquelyNamedThread;
 import java.io.FileWriter;
+import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.io.PrintWriter;
 
@@ -59,7 +60,7 @@ class LogThread extends UniquelyNamedThread implements ModelListener {
   private void addEntry(Value[] values) {
     if (writer == null) {
       try {
-        writer = new PrintWriter(new FileWriter(model.getFile(), true));
+        writer = new PrintWriter(new FileWriter(model.getFile(), StandardCharsets.UTF_8, true));
       } catch (IOException e) {
         model.setFile(null);
         return;

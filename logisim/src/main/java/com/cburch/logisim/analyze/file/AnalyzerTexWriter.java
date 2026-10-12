@@ -50,6 +50,7 @@ import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.Date;
@@ -404,7 +405,7 @@ public class AnalyzerTexWriter {
     /* make sure the model is up to date */
     boolean modelIsUpdating = model.getOutputExpressions().UpdatesEnabled();
     model.getOutputExpressions().enableUpdates();
-    PrintStream out = new PrintStream(file);
+    PrintStream out = new PrintStream(file, StandardCharsets.UTF_8.name());
     try {
       /*
        * We start to create the document header section with all required packages

@@ -35,6 +35,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.StringTokenizer;
 import javax.swing.filechooser.FileFilter;
@@ -63,6 +64,8 @@ public class TestVector {
 
     public TestVectorReader(BufferedReader in) throws IOException {
       this.in = in;
+      in.mark(1);
+      if (in.read() != '\uFEFF') in.reset();
       curLine = findNonemptyLine();
     }
 
@@ -149,7 +152,7 @@ public class TestVector {
   public ArrayList<Value[]> data;
 
   public TestVector(File src) throws IOException {
-    BufferedReader in = new BufferedReader(new FileReader(src));
+    BufferedReader in = new BufferedReader(new FileReader(src, StandardCharsets.UTF_8));
 
     try {
       TestVectorReader r = new TestVectorReader(in);

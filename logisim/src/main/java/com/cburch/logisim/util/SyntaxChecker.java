@@ -34,7 +34,6 @@ import com.cburch.logisim.fpga.designrulecheck.CorrectLabel;
 import com.cburch.logisim.fpga.hdlgenerator.HDLGeneratorFactory;
 import com.cburch.logisim.gui.generic.OptionPane;
 
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SyntaxChecker {
@@ -42,21 +41,15 @@ public class SyntaxChecker {
   public static String getErrorMessage(String val) {
     if (val.length() == 0) return null;
     if (val.length() > 0) {
-      variableMatcher = variablePattern.matcher(val);
-      forbiddenMatcher = forbiddenPattern.matcher(val);
-      boolean ret = true;
       String HDL = CorrectLabel.HDLCorrectLabel(val);
       String Message = "";
-      if (!variableMatcher.matches()) {
-        ret = false;
+      if (!isIdentifier(val)) {
         Message = Message.concat(S.get("variableInvalidCharacters"));
       }
-      if (forbiddenMatcher.find()) {
-        ret = false;
+      if (forbiddenPattern.matcher(val).find()) {
         Message = Message.concat(S.get("variableDoubleUnderscore"));
       }
       if (HDL != null) {
-        ret = false;
         Message =
             Message.concat(
                 HDL.equals(HDLGeneratorFactory.VHDL)
@@ -64,7 +57,6 @@ public class SyntaxChecker {
                     : S.get("variableVerilogKeyword"));
       }
       if (val.endsWith("_")) {
-        ret = false;
         Message = Message.concat(S.get("variableEndsWithUndescore"));
       }
       if (Message.length() == 0)
@@ -84,9 +76,11 @@ public class SyntaxChecker {
     return Message == null;
   }
 
-  private static Pattern variablePattern = Pattern.compile("^([a-zA-Z]+\\w*)");
-  private static Pattern forbiddenPattern = Pattern.compile("__");
+  public static final String IDENTIFIER_PATTERN = "\\p{L}[\\p{L}\\p{M}\\p{Nd}_]*";
+  private static final Pattern variablePattern = Pattern.compile(IDENTIFIER_PATTERN);
+  private static final Pattern forbiddenPattern = Pattern.compile("__");
 
-  private static Matcher forbiddenMatcher;
-  private static Matcher variableMatcher;
+  public static boolean isIdentifier(String value) {
+    return variablePattern.matcher(value).matches();
+  }
 }

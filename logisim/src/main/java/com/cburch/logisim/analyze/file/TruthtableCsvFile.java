@@ -41,6 +41,7 @@ import com.cburch.logisim.analyze.model.VariableList;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import javax.swing.JFrame;
 import javax.swing.filechooser.FileFilter;
 
@@ -55,7 +56,7 @@ public class TruthtableCsvFile {
     VariableList inputs = model.getInputs();
     VariableList outputs = model.getOutputs();
     if (inputs.vars.isEmpty() || outputs.vars.isEmpty()) return;
-    PrintStream out = new PrintStream(file);
+    PrintStream out = new PrintStream(file, StandardCharsets.UTF_8.name());
     try {
       TruthTable tt = model.getTruthTable();
       tt.compactVisibleRows();

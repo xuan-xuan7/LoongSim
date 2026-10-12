@@ -62,6 +62,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.util.ArrayList;
 import javax.swing.BorderFactory;
@@ -212,7 +213,7 @@ public class PLATable {
   public static PLATable parse(File src) throws IOException {
     BufferedReader in;
     try {
-      in = new BufferedReader(new FileReader(src));
+      in = new BufferedReader(new FileReader(src, StandardCharsets.UTF_8));
     } catch (IOException e) {
       throw new IOException(S.get("plaFileOpenError"));
     }
@@ -236,7 +237,7 @@ public class PLATable {
   public void save(File dst) throws IOException {
     FileWriter out;
     try {
-      out = new FileWriter(dst);
+      out = new FileWriter(dst, StandardCharsets.UTF_8);
     } catch (IOException e) {
       throw new IOException(S.get("plaFileCreateError"));
     }

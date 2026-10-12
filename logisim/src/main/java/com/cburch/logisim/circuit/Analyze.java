@@ -421,23 +421,24 @@ public class Analyze {
     StringBuilder end = null;
     StringBuilder ret = new StringBuilder();
     boolean afterWhitespace = false;
-    for (int i = 0; i < label.length(); i++) {
-      char c = label.charAt(i);
+    for (int i = 0; i < label.length(); ) {
+      int c = label.codePointAt(i);
+      i += Character.charCount(c);
       if (Character.isJavaIdentifierStart(c)) {
         if (afterWhitespace) {
           // capitalize words after the first one
           c = Character.toTitleCase(c);
           afterWhitespace = false;
         }
-        ret.append(c);
+        ret.appendCodePoint(c);
       } else if (Character.isJavaIdentifierPart(c)) {
         // If we can't place it at the start, we'll dump it
         // onto the end.
         if (ret.length() > 0) {
-          ret.append(c);
+          ret.appendCodePoint(c);
         } else {
           if (end == null) end = new StringBuilder();
-          end.append(c);
+          end.appendCodePoint(c);
         }
         afterWhitespace = false;
       } else if (Character.isWhitespace(c)) {

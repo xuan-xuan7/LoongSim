@@ -41,6 +41,7 @@ import com.cburch.logisim.util.SyntaxChecker;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -386,9 +387,14 @@ public class CsvInterpretor {
 
   private void readFile(File file, CsvParameter param) {
     try {
-      Scanner scanner = new Scanner(file);
-      while (scanner.hasNext()) {
-        content.add(parseCsvLine(scanner.next(), param.seperator(), param.quote()));
+      Scanner scanner = new Scanner(file, StandardCharsets.UTF_8.name());
+      boolean firstLine = true;
+      while (scanner.hasNextLine()) {
+        String line = scanner.nextLine();
+        if (firstLine && line.startsWith("\uFEFF")) line = line.substring(1);
+        firstLine = false;
+        if (line.trim().isEmpty()) continue;
+        content.add(parseCsvLine(line, param.seperator(), param.quote()));
       }
       scanner.close();
     } catch (FileNotFoundException e) {
