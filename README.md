@@ -209,4 +209,4 @@ python scripts/update-app-icons.py
 
 - Windows 提供 EXE 和 MSI，Mac 分别提供 Apple Silicon、Intel 的 DMG；均内置 Java 运行时。
 - 构建、Windows 代码签名、Apple Developer ID 签名及公证的流程见 [安装包说明](packaging/README.md)。
-- 待签名产物标为 `unsigned`；正式 Release 的替换必须通过所有平台的签名和公证检查。
+- 未签名产物标为 `unsigned`；可明确选择发布未签名版本，Release 会注明签名状态和首次打开时的系统提示。

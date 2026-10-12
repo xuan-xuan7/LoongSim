@@ -1,4 +1,4 @@
-"""Replace release installers only after all platforms passed trusted signing gates."""
+"""Verify and replace release installers, with explicit opt-in for unsigned releases."""
 import hashlib
 import json
 import os
@@ -12,6 +12,7 @@ def main():
     repository = os.environ['GITHUB_REPOSITORY']
     token = os.environ['GITHUB_TOKEN']
     commit = os.environ['GITHUB_SHA']
+    allow_unsigned = os.environ.get('ALLOW_UNSIGNED_RELEASE') == 'true'
     directory = Path(sys.argv[1])
     backup = Path(sys.argv[2])
     tag = os.environ.get('RELEASE_TAG', 'v1.0.0-logisim-only')
@@ -39,20 +40,22 @@ def main():
     manifests = [json.loads(p.read_text(encoding='utf-8-sig')) for p in directory.rglob('*-build.json')]
     required = {'windows-x64', 'macos-x64', 'macos-arm64'}
     if {m['platform'] for m in manifests} != required or len(manifests) != 3:
-        raise SystemExit('Expected signed Windows, Intel Mac and Apple Silicon Mac builds')
+        raise SystemExit('Expected Windows, Intel Mac and Apple Silicon Mac builds')
     if len({m['jarSha256'] for m in manifests}) != 1:
         raise SystemExit('Installers must contain the same application JAR')
     files = []
     for manifest in manifests:
-        if not manifest.get('signed') or manifest['sourceCommit'] != commit:
-            raise SystemExit('Unsigned or mismatched-source installers cannot be published')
-        if manifest['platform'].startswith('macos-') and not manifest.get('notarized'):
+        if manifest['sourceCommit'] != commit:
+            raise SystemExit('Mismatched-source installers cannot be published')
+        if not manifest.get('signed') and not allow_unsigned:
+            raise SystemExit('Unsigned release requires ALLOW_UNSIGNED_RELEASE=true')
+        if manifest['platform'].startswith('macos-') and manifest.get('signed') and not manifest.get('notarized'):
             raise SystemExit('Mac installer notarization must be accepted')
         names = manifest.get('installers', [manifest.get('installer')])
         for name in names:
             filename = leaf(name)
-            if 'unsigned' in filename:
-                raise SystemExit('Unsigned installer filename rejected')
+            if ('unsigned' in filename) != (not manifest.get('signed')):
+                raise SystemExit('Installer filename does not match its signing status')
             matches = list(directory.rglob(filename))
             if len(matches) != 1:
                 raise SystemExit(f'Missing or ambiguous installer: {filename}')
@@ -97,12 +100,20 @@ def main():
             expected = hashlib.sha256(file.read_bytes()).hexdigest()
             if asset['size'] != file.stat().st_size or asset.get('digest', 'sha256:' + expected) != 'sha256:' + expected:
                 raise RuntimeError(f'Remote upload verification failed: {file.name}')
+        signed_release = all(m.get('signed') for m in manifests)
+        signing_notes = (
+            '- Windows 启动器和安装包均经过 Authenticode 签名及时间戳验证。\n'
+            '- Mac 应用及 DMG 均经过 Developer ID 签名、Apple 公证和票据装订。\n'
+            if signed_release else
+            '- 本次安装包尚未进行可信代码签名；Mac 也尚未进行 Apple 公证。\n'
+            '- Windows 首次安装可能显示发布者未知或 SmartScreen 提示。\n'
+            '- Mac 首次打开可能被系统拦截；确认来源后，可在系统设置 → 隐私与安全性中允许打开。\n'
+        )
         body = ('## LoongSim 教学界面更新\n\n'
                 '包含新的应用图标、组件分类、简化属性、组件样式和五端口计数器。\n\n'
                 '- Windows：下载 setup.exe 双击安装，或选择 MSI 安装包；内置 Java 运行时。\n'
                 '- Mac：Apple Silicon 下载 arm64 DMG；Intel Mac 下载 x64 DMG，拖动应用到 Applications。\n'
-                '- Windows 启动器和安装包均经过 Authenticode 签名及时间戳验证。\n'
-                '- Mac 应用及 DMG 均经过 Developer ID 签名、Apple 公证和票据装订。\n\n'
+                + signing_notes + '\n'
                 f'安装包源码：[本次构建提交](https://github.com/{repository}/commit/{commit})。\n'
                 'SHA256 校验文件和 LoongSim-build-info.json 与安装包一同提供。\n')
         api(f"{base}/releases/{release['id']}", 'PATCH', {'body': body})
@@ -114,7 +125,7 @@ def main():
         raise
     for asset in old:
         api(f"{base}/releases/assets/{asset['id']}", 'DELETE')
-    print('Verified signed installers published; previous Windows assets removed.')
+    print('Verified installers published; previous Windows assets removed.')
 
 
 if __name__ == '__main__':

@@ -32,7 +32,7 @@ export JAVA_HOME=/path/to/jdk17
 bash scripts/package-macos.sh logisim/build/libs/LoongSim-1.0.0-java11-all.jar
 ```
 
-缺少签名凭据的产物在文件名中标为 `unsigned`，用于检查打包结果。
+缺少签名凭据的产物在文件名中标为 `unsigned`，可作为未签名版本发布，Release 必须注明签名状态。
 
 ## GitHub Actions
 
@@ -55,9 +55,10 @@ Windows 的云签名服务或硬件证书可通过自托管 Windows runner 和 `
 配置好 Secrets 后，将仓库 Actions Variable `LOONGSIM_SIGNED_BUILDS` 设置为 `true`，重新运行安装包流程。也可在工作流可手动运行时选择 `signed=true`。
 
 - Mac 构建在临时钥匙串中导入身份，采用 Hardened Runtime 签名；应用与 DMG 分别提交 Apple 公证，并装订公证票据。
-- Windows 签名验证、两个 Mac 的公证与装订全部成功后，才允许发布。
+- 签名版本必须通过 Windows 签名验证、两个 Mac 的公证与装订，才允许发布。
+- 暂不签名时，手动运行工作流选择 `signed=false` 和 `publish_unsigned=true`，发布带 `unsigned` 文件名的安装包。直接调用发布脚本需要设置 `ALLOW_UNSIGNED_RELEASE=true`；版本来源、三平台 JAR 一致性、校验文件和上传检查仍然必须通过。
 - 发布流程先备份旧附件，再上传并核对新包；上传失败会恢复旧附件名称。
 - 全部新包上传成功后，替换现有 `v1.0.0-logisim-only` Release 中的旧 Windows 附件；保留旧附件备份 90 天。
-- 没有可信签名或 Apple 公证时，流程不会替换正式 Release。
+- 未明确选择发布未签名版本时，缺少可信签名或 Apple 公证的产物仅保存在 Actions Artifacts 中。
 
 签名凭据仅通过证书库、环境变量或 GitHub Secrets 提供，证书、私钥和密码均不写入源码仓库。

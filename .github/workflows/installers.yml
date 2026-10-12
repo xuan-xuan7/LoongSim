@@ -15,7 +15,11 @@ on:
       signed:
         description: 'Require trusted Windows signing and Apple notarization'
         type: boolean
-        default: true
+        default: false
+      publish_unsigned:
+        description: 'Publish unsigned installers to the existing release'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -137,7 +141,7 @@ jobs:
 
   publish:
     needs: [windows, macos]
-    if: inputs.signed || vars.LOONGSIM_SIGNED_BUILDS == 'true'
+    if: inputs.signed || inputs.publish_unsigned || vars.LOONGSIM_SIGNED_BUILDS == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 25
     permissions:
@@ -154,6 +158,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           RELEASE_TAG: v1.0.0-logisim-only
+          ALLOW_UNSIGNED_RELEASE: ${{ inputs.publish_unsigned && 'true' || 'false' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
