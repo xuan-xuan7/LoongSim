@@ -1,0 +1,163 @@
+name: LoongSim installers
+
+on:
+  push:
+    branches: [logisim-only]
+    paths:
+      - '.github/workflows/installers.yml'
+      - 'package-windows.ps1'
+      - 'scripts/package-macos.sh'
+      - 'scripts/import-macos-signing.sh'
+      - 'scripts/macos-entitlements.plist'
+      - 'logisim/**'
+  workflow_dispatch:
+    inputs:
+      signed:
+        description: 'Require trusted Windows signing and Apple notarization'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installers-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SIGNED_BUILD: ${{ (inputs.signed || vars.LOONGSIM_SIGNED_BUILDS == 'true') && 'true' || 'false' }}
+
+jobs:
+  jar:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+      - name: Build application JAR
+        working-directory: logisim
+        run: bash ./gradlew --no-daemon shadowJar
+      - name: Check application version
+        run: java -jar logisim/build/libs/*-all.jar -version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: application-jar
+          path: logisim/build/libs/*-all.jar
+          retention-days: 30
+
+  windows:
+    needs: jar
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: application-jar
+          path: local/package-input
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Import Windows signing certificate
+        if: env.SIGNED_BUILD == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if (-not $env:WINDOWS_CERTIFICATE_PFX_BASE64) { throw 'Missing Windows code-signing certificate' }
+          $pfx = Join-Path $env:RUNNER_TEMP 'loongsim-signing.pfx'
+          [IO.File]::WriteAllBytes($pfx,[Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_PFX_BASE64))
+          $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          "WINDOWS_CERTIFICATE_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+          Remove-Item -LiteralPath $pfx
+      - name: Package Windows installers
+        shell: pwsh
+        run: |
+          $jar = (Get-ChildItem local/package-input -Filter '*-all.jar' | Select-Object -First 1).FullName
+          .\package-windows.ps1 -JarPath $jar -Java17Home $env:JAVA_HOME -RequireSignature:($env:SIGNED_BUILD -eq 'true')
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-windows-x64
+          path: dist/*
+          retention-days: 30
+
+  macos:
+    needs: jar
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            arch: x64
+          - runner: macos-15
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: application-jar
+          path: local/package-input
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          architecture: ${{ matrix.arch == 'arm64' && 'aarch64' || 'x64' }}
+      - name: Import Apple signing identity
+        run: bash scripts/import-macos-signing.sh
+        env:
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_NOTARY_KEY_BASE64: ${{ secrets.MACOS_NOTARY_KEY_BASE64 }}
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+      - name: Package and optionally notarize Mac installer
+        run: bash scripts/package-macos.sh local/package-input/*-all.jar
+        env:
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-macos-${{ matrix.arch }}
+          path: dist/*
+          retention-days: 30
+      - name: Remove temporary signing keychain
+        if: always() && env.SIGNED_BUILD == 'true'
+        run: |
+          if [[ -n "${MACOS_SIGNING_KEYCHAIN:-}" ]]; then
+            security delete-keychain "$MACOS_SIGNING_KEYCHAIN"
+          fi
+
+  publish:
+    needs: [windows, macos]
+    if: inputs.signed || vars.LOONGSIM_SIGNED_BUILDS == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installers-*
+          path: local/release-installers
+          merge-multiple: true
+      - name: Replace the existing release installers
+        run: python3 scripts/publish-installers.py local/release-installers local/previous-release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_TAG: v1.0.0-logisim-only
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: previous-release-backup
+          path: local/previous-release
+          if-no-files-found: ignore
+          retention-days: 90
