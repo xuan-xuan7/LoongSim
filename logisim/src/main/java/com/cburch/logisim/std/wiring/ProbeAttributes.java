@@ -130,9 +130,10 @@ public class ProbeAttributes extends AbstractAttributeSet implements ConvertEven
       if (radix.equals(NewValue)) return;
       radix = NewValue;
     } else if (attr == PROBEAPPEARANCE) {
-      AttributeOption NewAppearance = (AttributeOption) value;
+      AttributeOption NewAppearance = StdAttr.APPEAR_CLASSIC;
       if (Appearance.equals(NewAppearance)) return;
       Appearance = NewAppearance;
+      value = (V) NewAppearance;
     } else {
       throw new IllegalArgumentException("unknown attribute");
     }

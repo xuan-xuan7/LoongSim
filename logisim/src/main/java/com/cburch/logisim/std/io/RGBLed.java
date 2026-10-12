@@ -53,6 +53,7 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
+import java.util.Map;
 
 public class RGBLed extends InstanceFactory implements DynamicElementProvider {
 
@@ -141,6 +142,11 @@ public class RGBLed extends InstanceFactory implements DynamicElementProvider {
     ps[GREEN].setToolTip(S.getter("GREEN"));
     ps[BLUE].setToolTip(S.getter("BLUE"));
     instance.setPorts(ps);
+  }
+
+  @Override
+  public AttributeSet createAttributeSet() {
+    return new FixedLabelAttributes(super.createAttributeSet(), Map.of(Io.ATTR_ACTIVE, Boolean.TRUE));
   }
 
   @Override

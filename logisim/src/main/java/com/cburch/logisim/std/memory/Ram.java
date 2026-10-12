@@ -120,6 +120,9 @@ public class Ram extends Mem {
 
   @Override
   public Object getDefaultAttributeValue(Attribute<?> attr, LogisimVersion ver) {
+    // Missing triggers in older files mean rising-edge writes. New high-level
+    // components explicitly save their trigger so both layouts survive reload.
+    if (attr == StdAttr.TRIGGER) return StdAttr.TRIG_RISING;
     if (attr.equals(StdAttr.APPEARANCE)) {
       return StdAttr.APPEAR_CLASSIC;
     } else {

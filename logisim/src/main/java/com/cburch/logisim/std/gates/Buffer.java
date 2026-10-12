@@ -184,6 +184,11 @@ class Buffer extends InstanceFactory {
   }
 
   @Override
+  public AttributeSet createAttributeSet() {
+    return new FixedOutputAttributes(super.createAttributeSet());
+  }
+
+  @Override
   public boolean HDLSupportedComponent(String HDLIdentifier, AttributeSet attrs) {
     if (MyHDLGenerator == null) MyHDLGenerator = new BufferGateHDLGeneratorFactory();
     return MyHDLGenerator.HDLTargetSupported(HDLIdentifier, attrs);

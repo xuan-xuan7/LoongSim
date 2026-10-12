@@ -35,7 +35,7 @@ import com.cburch.logisim.tools.key.LongConfigurator;
 
 class ConstantConfigurator extends LongConfigurator {
   public ConstantConfigurator() {
-    super(Constant.ATTR_VALUE, 0, 0, 0, 16);
+    super(Constant.ATTR_VALUE, 0, 0, 0, 2);
   }
 
   @Override

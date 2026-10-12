@@ -42,20 +42,20 @@ import com.cburch.logisim.instance.InstancePainter;
 import com.cburch.logisim.instance.InstanceState;
 import com.cburch.logisim.instance.Port;
 import com.cburch.logisim.instance.StdAttr;
+import com.cburch.logisim.prefs.AppPreferences;
 import com.cburch.logisim.tools.key.BitWidthConfigurator;
 import com.cburch.logisim.util.GraphicsUtil;
 import java.awt.Color;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 
 public class Tunnel extends InstanceFactory {
   public static final Tunnel FACTORY = new Tunnel();
 
   static final int MARGIN = 3;
-  static final int ARROW_MARGIN = 5;
-  static final int ARROW_DEPTH = 4;
-  static final int ARROW_MIN_WIDTH = 16;
-  static final int ARROW_MAX_WIDTH = 20;
+  static final int LABEL_MARGIN = 8;
+  static final int LABEL_MIN_SIZE = 24;
 
   public Tunnel() {
     super("Tunnel", S.getter("tunnelComponent"));
@@ -71,7 +71,7 @@ public class Tunnel extends InstanceFactory {
     int halign = attrs.getLabelHAlign();
     int valign = attrs.getLabelVAlign();
 
-    int minDim = ARROW_MIN_WIDTH - 2 * MARGIN;
+    int minDim = LABEL_MIN_SIZE - 2 * MARGIN;
     int bw = Math.max(minDim, textWidth);
     int bh = Math.max(minDim, textHeight);
     int bx;
@@ -188,48 +188,32 @@ public class Tunnel extends InstanceFactory {
     int y0 = bds.getY();
     int x1 = x0 + bds.getWidth();
     int y1 = y0 + bds.getHeight();
-    int mw = ARROW_MAX_WIDTH / 2;
-    int[] xp;
-    int[] yp;
-    if (facing == Direction.NORTH) {
-      int yb = y0 + ARROW_DEPTH;
-      if (x1 - x0 <= ARROW_MAX_WIDTH) {
-        xp = new int[] {x0, 0, x1, x1, x0};
-        yp = new int[] {yb, y0, yb, y1, y1};
-      } else {
-        xp = new int[] {x0, -mw, 0, mw, x1, x1, x0};
-        yp = new int[] {yb, yb, y0, yb, yb, y1, y1};
-      }
-    } else if (facing == Direction.SOUTH) {
-      int yb = y1 - ARROW_DEPTH;
-      if (x1 - x0 <= ARROW_MAX_WIDTH) {
-        xp = new int[] {x0, x1, x1, 0, x0};
-        yp = new int[] {y0, y0, yb, y1, yb};
-      } else {
-        xp = new int[] {x0, x1, x1, mw, 0, -mw, x0};
-        yp = new int[] {y0, y0, yb, yb, y1, yb, yb};
-      }
-    } else if (facing == Direction.EAST) {
-      int xb = x1 - ARROW_DEPTH;
-      if (y1 - y0 <= ARROW_MAX_WIDTH) {
-        xp = new int[] {x0, xb, x1, xb, x0};
-        yp = new int[] {y0, y0, 0, y1, y1};
-      } else {
-        xp = new int[] {x0, xb, xb, x1, xb, xb, x0};
-        yp = new int[] {y0, y0, -mw, 0, mw, y1, y1};
-      }
-    } else {
-      int xb = x0 + ARROW_DEPTH;
-      if (y1 - y0 <= ARROW_MAX_WIDTH) {
-        xp = new int[] {xb, x1, x1, xb, x0};
-        yp = new int[] {y0, y0, y1, y1, 0};
-      } else {
-        xp = new int[] {xb, x1, x1, xb, xb, x0, xb};
-        yp = new int[] {y0, y0, y1, y1, mw, 0, -mw};
-      }
-    }
     GraphicsUtil.switchToWidth(g, 2);
-    g.drawPolygon(xp, yp, xp.length);
+    if (facing == Direction.NORTH) {
+      y0 += LABEL_MARGIN - MARGIN;
+      g.drawLine(0, 0, 0, y0);
+    } else if (facing == Direction.SOUTH) {
+      y1 -= LABEL_MARGIN - MARGIN;
+      g.drawLine(0, y1, 0, 0);
+    } else if (facing == Direction.EAST) {
+      x1 -= LABEL_MARGIN - MARGIN;
+      g.drawLine(x1, 0, 0, 0);
+    } else {
+      x0 += LABEL_MARGIN - MARGIN;
+      g.drawLine(0, 0, x0, 0);
+    }
+    g.drawRoundRect(x0, y0, x1 - x0, y1 - y0, 8, 8);
+  }
+
+  @Override
+  public void paintIcon(InstancePainter painter) {
+    Graphics2D g = (Graphics2D) painter.getGraphics().create();
+    double scale = AppPreferences.getIconSize() / 20.0;
+    g.scale(scale, scale);
+    g.setColor(Color.BLACK);
+    g.drawLine(1, 10, 5, 10);
+    g.drawRoundRect(5, 4, 14, 12, 5, 5);
+    g.dispose();
   }
 
   @Override

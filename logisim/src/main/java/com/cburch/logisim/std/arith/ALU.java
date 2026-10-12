@@ -9,25 +9,23 @@
 package com.cburch.logisim.std.arith;
 
 import static com.cburch.logisim.std.Strings.S;
+import com.cburch.logisim.LogisimVersion;
 
 import com.cburch.logisim.data.Attribute;
 import com.cburch.logisim.data.AttributeSet;
 import com.cburch.logisim.data.BitWidth;
 import com.cburch.logisim.data.Bounds;
-import com.cburch.logisim.data.Direction;
 import com.cburch.logisim.data.Location;
 import com.cburch.logisim.data.Value;
 import com.cburch.logisim.fpga.designrulecheck.CorrectLabel;
 import com.cburch.logisim.gui.icons.ArithmeticIcon;
 import com.cburch.logisim.instance.InstanceFactory;
+import com.cburch.logisim.instance.Instance;
 import com.cburch.logisim.instance.InstancePainter;
 import com.cburch.logisim.instance.InstanceState;
 import com.cburch.logisim.instance.Port;
 import com.cburch.logisim.instance.StdAttr;
 import com.cburch.logisim.tools.key.BitWidthConfigurator;
-import com.cburch.logisim.util.GraphicsUtil;
-import java.awt.Color;
-import java.awt.Graphics;
 
 /** A compact, fixed-operation arithmetic logic unit for CPU datapaths. */
 public class ALU extends InstanceFactory {
@@ -41,23 +39,64 @@ public class ALU extends InstanceFactory {
 
   public ALU() {
     super("ALU", S.getter("aluComponent"));
-    setAttributes(new Attribute[] {StdAttr.WIDTH}, new Object[] {BitWidth.create(8)});
+    setAttributes(new Attribute[] {StdAttr.WIDTH, ArithmeticSymbol.SPACIOUS},
+        new Object[] {BitWidth.create(8), Boolean.TRUE});
     setKeyConfigurator(new BitWidthConfigurator(StdAttr.WIDTH));
-    setOffsetBounds(Bounds.create(-60, -30, 120, 60));
     setIcon(new ArithmeticIcon("ALU", 3));
+    setPorts(createPorts(true));
+  }
 
+  private Port[] createPorts(boolean spacious) {
     Port[] ports = new Port[5];
-    ports[A] = new Port(-60, -10, Port.INPUT, StdAttr.WIDTH);
-    ports[B] = new Port(-60, 10, Port.INPUT, StdAttr.WIDTH);
-    ports[CONTROL] = new Port(0, -30, Port.INPUT, 3);
-    ports[ANSWER] = new Port(60, -10, Port.OUTPUT, StdAttr.WIDTH);
-    ports[CARRY] = new Port(60, 10, Port.OUTPUT, 1);
+    ports[A] = new Port(spacious ? -50 : -60, spacious ? -50 : -10, Port.INPUT, StdAttr.WIDTH);
+    ports[B] = new Port(spacious ? -50 : -60, spacious ? 50 : 10, Port.INPUT, StdAttr.WIDTH);
+    ports[CONTROL] = new Port(spacious ? -20 : 0, spacious ? -70 : -30, Port.INPUT, 3);
+    ports[ANSWER] = new Port(spacious ? 50 : 60, spacious ? 0 : -10, Port.OUTPUT, StdAttr.WIDTH);
+    ports[CARRY] = new Port(spacious ? -20 : 60, spacious ? 70 : 10, Port.OUTPUT, 1);
     ports[A].setToolTip(S.getter("aluInputATip"));
     ports[B].setToolTip(S.getter("aluInputBTip"));
     ports[CONTROL].setToolTip(S.getter("aluControlTip"));
     ports[ANSWER].setToolTip(S.getter("aluAnswerTip"));
     ports[CARRY].setToolTip(S.getter("aluCarryTip"));
-    setPorts(ports);
+    return ports;
+  }
+
+  @Override
+  public Object getDefaultAttributeValue(Attribute<?> attr, LogisimVersion ver) {
+    if (attr == ArithmeticSymbol.SPACIOUS) return Boolean.FALSE;
+    return super.getDefaultAttributeValue(attr, ver);
+  }
+
+  @Override
+  public Bounds getOffsetBounds(AttributeSet attrs) {
+    return attrs.getValue(ArithmeticSymbol.SPACIOUS) ? Bounds.create(-50, -70, 100, 140)
+        : Bounds.create(-60, -30, 120, 60);
+  }
+
+  @Override
+  public boolean contains(Location loc, AttributeSet attrs) {
+    if (!attrs.getValue(ArithmeticSymbol.SPACIOUS)) return super.contains(loc, attrs);
+    return ArithmeticSymbol.aluOutline(0, 0).intersects(loc.getX() - 1, loc.getY() - 1, 2, 2);
+  }
+
+  @Override
+  protected void configureNewInstance(Instance instance) {
+    instance.addAttributeListener();
+    instance.setPorts(createPorts(instance.getAttributeValue(ArithmeticSymbol.SPACIOUS)));
+  }
+
+  @Override
+  protected void instanceAttributeChanged(Instance instance, Attribute<?> attr) {
+    if (attr == ArithmeticSymbol.SPACIOUS) {
+      instance.recomputeBounds();
+      instance.setPorts(createPorts(instance.getAttributeValue(ArithmeticSymbol.SPACIOUS)));
+    }
+  }
+
+  @Override
+  public void paintGhost(InstancePainter painter) {
+    if (painter.getAttributeValue(ArithmeticSymbol.SPACIOUS)) ArithmeticSymbol.drawAluOutline(painter);
+    else painter.drawBounds();
   }
 
   @Override
@@ -73,20 +112,7 @@ public class ALU extends InstanceFactory {
 
   @Override
   public void paintInstance(InstancePainter painter) {
-    Graphics g = painter.getGraphics();
-    painter.drawBounds();
-    Location loc = painter.getLocation();
-    int x = loc.getX();
-    int y = loc.getY();
-    g.setColor(new Color(0, 128, 0));
-    GraphicsUtil.drawCenteredText(g, "ALU", x, y);
-
-    g.setColor(Color.GRAY);
-    painter.drawPort(A, "A", Direction.EAST);
-    painter.drawPort(B, "B", Direction.EAST);
-    painter.drawPort(CONTROL, "CTR", Direction.NORTH);
-    painter.drawPort(ANSWER, "Ans", Direction.WEST);
-    painter.drawPort(CARRY, "Carry", Direction.WEST);
+    ArithmeticSymbol.drawAlu(painter);
   }
 
   @Override

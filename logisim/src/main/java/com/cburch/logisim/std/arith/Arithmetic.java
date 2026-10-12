@@ -34,8 +34,12 @@ import com.cburch.logisim.tools.FactoryDescription;
 import com.cburch.logisim.tools.Library;
 import com.cburch.logisim.tools.Tool;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Set;
 
 public class Arithmetic extends Library {
+  private static final Set<String> HIDDEN_TOOLS = Set.of(
+      "Multiplier", "Divider", "BitAdder", "BitFinder", "Negator");
   private static FactoryDescription[] DESCRIPTIONS = {
     new FactoryDescription("ALU", S.getter("aluComponent"), "ALU"),
     new FactoryDescription("Adder", S.getter("adderComponent"), "adder.gif", "Adder"),
@@ -77,5 +81,14 @@ public class Arithmetic extends Library {
 
   public boolean removeLibrary(String Name) {
     return false;
+  }
+
+  @Override
+  public List<Tool> getVisibleTools() {
+    List<Tool> visible = new ArrayList<>();
+    for (Tool tool : getTools()) {
+      if (!HIDDEN_TOOLS.contains(tool.getName())) visible.add(tool);
+    }
+    return visible;
   }
 }

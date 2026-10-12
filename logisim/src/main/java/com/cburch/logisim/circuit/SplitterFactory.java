@@ -86,7 +86,9 @@ public class SplitterFactory extends AbstractComponentFactory {
 
   @Override
   public Object getDefaultAttributeValue(Attribute<?> attr, LogisimVersion ver) {
-    if (attr == SplitterAttributes.ATTR_APPEARANCE) {
+    if (attr == SplitterAttributes.ATTR_MAPPING) {
+      return null; // The mapping is derived from incoming/fanout and the saved bitN attributes.
+    } else if (attr == SplitterAttributes.ATTR_APPEARANCE) {
       if (ver.compareTo(LogisimVersion.get(2, 6, 4)) < 0) {
         return SplitterAttributes.APPEAR_LEGACY;
       } else {

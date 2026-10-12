@@ -26,6 +26,8 @@ dependencies {
     implementation("net.sf.nimrod:nimrod-laf:1.2")
     implementation("org.drjekyll:colorpicker:1.3")
     implementation("org.drjekyll:fontchooser:2.4")
+    implementation("at.swimmesberger:swingx-core:1.6.8")
+    implementation("eu.essilab:lablib-checkboxtree:4.0")
     implementation("org.slf4j:slf4j-api:1.7.30")
     implementation("org.slf4j:slf4j-simple:1.7.30")
 
@@ -37,6 +39,10 @@ dependencies {
 java {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
+}
+
+tasks.withType<JavaCompile> {
+    options.encoding = "UTF-8"
 }
 
 task<Jar>("sourcesJar") {

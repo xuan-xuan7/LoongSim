@@ -189,6 +189,11 @@ public class LoadedLibrary extends Library implements LibraryEventSource {
   }
 
   @Override
+  public List<? extends Tool> getVisibleTools() {
+    return base.getVisibleTools();
+  }
+
+  @Override
   public boolean isDirty() {
     return dirty || base.isDirty();
   }

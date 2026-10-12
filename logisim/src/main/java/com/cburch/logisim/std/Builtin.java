@@ -48,8 +48,12 @@ import com.cburch.logisim.tools.Tool;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 public class Builtin extends Library {
+  // Retain these libraries for existing circuit files, but hide their toolbox entries.
+  private static final Set<String> HIDDEN_LIBRARIES =
+      Set.of("TTL", "TCL", "BFH-Praktika", "Soc");
   private List<Library> libraries = null;
 
   public Builtin() {
@@ -70,6 +74,9 @@ public class Builtin extends Library {
               new Soc(),
               new Base(),
             });
+    for (Library library : libraries) {
+      if (HIDDEN_LIBRARIES.contains(library.getName())) library.setHidden();
+    }
   }
 
   @Override

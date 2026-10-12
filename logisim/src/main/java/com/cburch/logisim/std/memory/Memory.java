@@ -31,12 +31,16 @@ package com.cburch.logisim.std.memory;
 import static com.cburch.logisim.std.Strings.S;
 
 import com.cburch.logisim.tools.FactoryDescription;
+import com.cburch.logisim.comp.ComponentFactory;
 import com.cburch.logisim.tools.Library;
 import com.cburch.logisim.tools.Tool;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Set;
 
 public class Memory extends Library {
   protected static final int DELAY = 5;
+  private static final Set<String> HIDDEN_TOOLS = Set.of("Counter", "Shift Register", "Random");
 
   private static FactoryDescription[] DESCRIPTIONS = {
     new FactoryDescription(
@@ -48,6 +52,7 @@ public class Memory extends Library {
     new FactoryDescription(
         "S-R Flip-Flop", S.getter("srFlipFlopComponent"), "srFlipFlop.gif", "SRFlipFlop"),
     new FactoryDescription("Register", S.getter("registerComponent"), "register.gif", "Register"),
+    new FactoryDescription("SimpleCounter", S.getter("simpleCounterComponent"), "SimpleCounter"),
     new FactoryDescription("Counter", S.getter("counterComponent"), "counter.gif", "Counter"),
     new FactoryDescription(
         "Shift Register", S.getter("shiftRegisterComponent"), "shiftreg.gif", "ShiftRegister"),
@@ -59,6 +64,11 @@ public class Memory extends Library {
   private List<Tool> tools = null;
 
   public Memory() {}
+
+  public static boolean hasFixedAppearance(ComponentFactory factory) {
+    return factory instanceof AbstractFlipFlop || factory instanceof Register
+        || factory instanceof Ram || factory instanceof Rom;
+  }
 
   @Override
   public String getDisplayName() {
@@ -80,5 +90,14 @@ public class Memory extends Library {
 
   public boolean removeLibrary(String Name) {
     return false;
+  }
+
+  @Override
+  public List<Tool> getVisibleTools() {
+    List<Tool> visible = new ArrayList<>();
+    for (Tool tool : getTools()) {
+      if (!HIDDEN_TOOLS.contains(tool.getName())) visible.add(tool);
+    }
+    return visible;
   }
 }

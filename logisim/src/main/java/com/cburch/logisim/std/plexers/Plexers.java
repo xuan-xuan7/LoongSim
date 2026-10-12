@@ -43,6 +43,7 @@ import com.cburch.logisim.tools.Tool;
 import com.cburch.logisim.util.GraphicsUtil;
 import java.awt.Graphics;
 import java.util.List;
+import java.util.ArrayList;
 
 public class Plexers extends Library {
   static boolean contains(Location loc, Bounds bds, Direction facing) {
@@ -115,6 +116,9 @@ public class Plexers extends Library {
 
   public static final Attribute<BitWidth> ATTR_SELECT =
       Attributes.forBitWidth("select", S.getter("plexerSelectBitsAttr"), 1, 5);
+  // The larger editor is used only by MUX, DMX and DEC; file attribute identity stays the same.
+  public static final Attribute<BitWidth> SELECT_BITS_EDITOR =
+      Attributes.forBitWidth("select", S.getter("plexerSelectBitsAttr"), 1, 7);
   public static final Object DEFAULT_SELECT = BitWidth.create(1);
 
   public static final Attribute<Boolean> ATTR_TRISTATE =
@@ -187,5 +191,14 @@ public class Plexers extends Library {
 
   public boolean removeLibrary(String Name) {
     return false;
+  }
+
+  @Override
+  public List<Tool> getVisibleTools() {
+    List<Tool> visible = new ArrayList<>();
+    for (Tool tool : getTools()) {
+      if (!tool.getName().equals("Priority Encoder")) visible.add(tool);
+    }
+    return visible;
   }
 }

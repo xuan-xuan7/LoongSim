@@ -52,6 +52,7 @@ import com.cburch.logisim.util.GraphicsUtil;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.event.KeyEvent;
+import java.util.Map;
 
 public class Led extends InstanceFactory implements DynamicElementProvider {
 
@@ -101,6 +102,11 @@ public class Led extends InstanceFactory implements DynamicElementProvider {
     setKeyConfigurator(new DirectionConfigurator(StdAttr.LABEL_LOC, KeyEvent.ALT_DOWN_MASK));
     setPorts(new Port[] {new Port(0, 0, Port.INPUT, 1)});
     setInstanceLogger(Logger.class);
+  }
+
+  @Override
+  public AttributeSet createAttributeSet() {
+    return new FixedLabelAttributes(super.createAttributeSet(), Map.of(Io.ATTR_ACTIVE, Boolean.TRUE));
   }
 
   @Override

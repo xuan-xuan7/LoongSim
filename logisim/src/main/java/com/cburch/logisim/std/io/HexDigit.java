@@ -50,6 +50,7 @@ import com.cburch.logisim.instance.StdAttr;
 import com.cburch.logisim.tools.key.DirectionConfigurator;
 import java.awt.Color;
 import java.awt.event.KeyEvent;
+import java.util.Map;
 
 public class HexDigit extends InstanceFactory implements DynamicElementProvider {
 
@@ -74,11 +75,11 @@ public class HexDigit extends InstanceFactory implements DynamicElementProvider 
           new Color(240, 0, 0),
           SevenSegment.DEFAULT_OFF,
           Io.DEFAULT_BACKGROUND,
-          Boolean.TRUE,
+          Boolean.FALSE,
           "",
           Direction.EAST,
           StdAttr.DEFAULT_LABEL_FONT,
-          false,
+          true,
           new ComponentMapInformationContainer(0, 8, 0, null, SevenSegment.GetLabels(), null) 
         });
     setOffsetBounds(Bounds.create(-15, -60, 40, 60));
@@ -97,6 +98,12 @@ public class HexDigit extends InstanceFactory implements DynamicElementProvider 
     }
     instance.setPorts(ps);
     instance.getAttributeValue(StdAttr.MAPINFO).setNrOfOutports(6+nrPorts, SevenSegment.GetLabels());
+  }
+
+  @Override
+  public AttributeSet createAttributeSet() {
+    return new FixedLabelAttributes(super.createAttributeSet(),
+        Map.of(SevenSegment.ATTR_DP, Boolean.FALSE));
   }
 
   @Override

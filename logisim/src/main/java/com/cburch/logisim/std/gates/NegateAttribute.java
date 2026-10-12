@@ -78,8 +78,11 @@ class NegateAttribute extends Attribute<Boolean> {
 
   @Override
   public Boolean parse(String value) {
-    return BOOLEAN_ATTR.parse(value);
+    return Boolean.FALSE;
   }
+
+  @Override
+  public boolean isHidden() { return true; }
 
   @Override
   public String toDisplayString(Boolean value) {

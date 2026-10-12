@@ -109,7 +109,7 @@ class AttrTableSelectionModel extends AttributeSetTableModel implements Selectio
     }
 
     if (variousFound) {
-      SetInstance(factory);
+      SetInstance(null);
       return S.fmt("selectionVarious", "" + totalCount);
     } else if (factoryCount == 0) {
       Circuit circ = frame.getCanvas().getCircuit();

@@ -45,6 +45,7 @@ import com.cburch.logisim.gui.generic.ProjectExplorerEvent;
 import com.cburch.logisim.gui.generic.ProjectExplorerLibraryNode;
 import com.cburch.logisim.gui.generic.ProjectExplorerListener;
 import com.cburch.logisim.gui.generic.ProjectExplorerToolNode;
+import com.cburch.logisim.gui.generic.ToolboxGroup;
 import com.cburch.logisim.gui.menu.Popups;
 import com.cburch.logisim.gui.menu.ProjectCircuitActions;
 import com.cburch.logisim.gui.menu.ProjectLibraryActions;
@@ -154,6 +155,7 @@ class ToolboxManip implements ProjectExplorerListener {
     Object request = event.getTarget();
     if (request instanceof ProjectExplorerLibraryNode) {
       Library lib = ((ProjectExplorerLibraryNode) request).getValue();
+      if (lib instanceof ToolboxGroup) return;
       ProjectLibraryActions.doUnloadLibrary(proj, lib);
     } else if (request instanceof ProjectExplorerToolNode) {
       Tool tool = ((ProjectExplorerToolNode) request).getValue();
@@ -209,6 +211,7 @@ class ToolboxManip implements ProjectExplorerListener {
       }
     } else if (clicked instanceof ProjectExplorerLibraryNode) {
       Library lib = ((ProjectExplorerLibraryNode) clicked).getValue();
+      if (lib instanceof ToolboxGroup) return null;
       if (lib == proj.getLogisimFile()) {
         return Popups.forProject(proj);
       } else {

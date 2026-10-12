@@ -58,9 +58,11 @@ import java.util.List;
 
 public class Constant extends InstanceFactory {
   private static class ConstantAttributes extends AbstractAttributeSet {
-    private Direction facing = Direction.EAST;;
+    private Direction facing = Direction.EAST;
     private BitWidth width = BitWidth.ONE;
     private Value value = Value.TRUE;
+    private String label = "";
+    private Object labelLocation = Direction.WEST;
 
     @Override
     protected void copyInto(AbstractAttributeSet destObj) {
@@ -68,6 +70,8 @@ public class Constant extends InstanceFactory {
       dest.facing = this.facing;
       dest.width = this.width;
       dest.value = this.value;
+      dest.label = this.label;
+      dest.labelLocation = this.labelLocation;
     }
 
     @Override
@@ -81,6 +85,9 @@ public class Constant extends InstanceFactory {
       if (attr == StdAttr.FACING) return (V) facing;
       if (attr == StdAttr.WIDTH) return (V) width;
       if (attr == ATTR_VALUE) return (V) Long.valueOf(value.toLongValue());
+      if (attr == StdAttr.LABEL) return (V) label;
+      if (attr == StdAttr.LABEL_LOC) return (V) labelLocation;
+      if (attr == StdAttr.LABEL_FONT) return (V) StdAttr.DEFAULT_LABEL_FONT;
       return null;
     }
 
@@ -95,6 +102,12 @@ public class Constant extends InstanceFactory {
       } else if (attr == ATTR_VALUE) {
         long val = ((Long) value).longValue();
         this.value = Value.createKnown(width, val);
+      } else if (attr == StdAttr.LABEL) {
+        label = (String) value;
+      } else if (attr == StdAttr.LABEL_LOC) {
+        labelLocation = value;
+      } else if (attr == StdAttr.LABEL_FONT) {
+        return; // Labels always use the shared default font.
       } else {
         throw new IllegalArgumentException("unknown attribute " + attr);
       }
@@ -135,7 +148,16 @@ public class Constant extends InstanceFactory {
   private static final Font DEFAULT_FONT = new Font("monospaced", Font.PLAIN, 12);
 
   private static final List<Attribute<?>> ATTRIBUTES =
-      Arrays.asList(new Attribute<?>[] {StdAttr.FACING, StdAttr.WIDTH, ATTR_VALUE});
+      Arrays.asList(new Attribute<?>[] {
+        StdAttr.FACING, StdAttr.WIDTH, ATTR_VALUE,
+        StdAttr.LABEL, StdAttr.LABEL_LOC, StdAttr.LABEL_FONT
+      });
+
+  public static String toBinaryString(long value, int width) {
+    String bits = Long.toBinaryString(value);
+    if (bits.length() > width) bits = bits.substring(bits.length() - width);
+    return "0".repeat(width - bits.length()) + bits;
+  }
 
   public Constant() {
     super("Constant", S.getter("constantComponent"));
@@ -149,6 +171,7 @@ public class Constant extends InstanceFactory {
   protected void configureNewInstance(Instance instance) {
     instance.addAttributeListener();
     updatePorts(instance);
+    instance.computeLabelTextField(Instance.AVOID_CENTER | Instance.AVOID_LEFT);
   }
 
   @Override
@@ -166,7 +189,7 @@ public class Constant extends InstanceFactory {
   public Bounds getOffsetBounds(AttributeSet attrs) {
     Direction facing = attrs.getValue(StdAttr.FACING);
     BitWidth width = attrs.getValue(StdAttr.WIDTH);
-    int chars = (width.getWidth() + 3) / 4;
+    int chars = width.getWidth();
     int w = 7 + 7 * chars;
     if (facing == Direction.EAST) return Bounds.create(-w, -8, w, 16);
     else if (facing == Direction.WEST) return Bounds.create(0, -8, w, 16);
@@ -186,8 +209,12 @@ public class Constant extends InstanceFactory {
     if (attr == StdAttr.WIDTH) {
       instance.recomputeBounds();
       updatePorts(instance);
+      instance.computeLabelTextField(Instance.AVOID_CENTER | Instance.AVOID_LEFT);
     } else if (attr == StdAttr.FACING) {
       instance.recomputeBounds();
+      instance.computeLabelTextField(Instance.AVOID_CENTER | Instance.AVOID_LEFT);
+    } else if (attr == StdAttr.LABEL_LOC) {
+      instance.computeLabelTextField(Instance.AVOID_CENTER | Instance.AVOID_LEFT);
     } else if (attr == ATTR_VALUE) {
       instance.fireInvalidated();
     }
@@ -196,7 +223,7 @@ public class Constant extends InstanceFactory {
   @Override
   public void paintGhost(InstancePainter painter) {
     long v = painter.getAttributeValue(ATTR_VALUE).longValue();
-    String vStr = Long.toHexString(v);
+    String vStr = toBinaryString(v, painter.getAttributeValue(StdAttr.WIDTH).getWidth());
     Bounds bds = getOffsetBounds(painter.getAttributeSet());
 
     Graphics g = painter.getGraphics();
@@ -245,7 +272,7 @@ public class Constant extends InstanceFactory {
   public void paintInstance(InstancePainter painter) {
     Bounds bds = painter.getOffsetBounds();
     BitWidth width = painter.getAttributeValue(StdAttr.WIDTH);
-    long longValue = painter.getAttributeValue(ATTR_VALUE).intValue();
+    long longValue = painter.getAttributeValue(ATTR_VALUE).longValue();
     Value v = Value.createKnown(width, longValue);
     Location loc = painter.getLocation();
     int x = loc.getX();
@@ -269,11 +296,12 @@ public class Constant extends InstanceFactory {
       g.setFont(DEFAULT_FONT);
       GraphicsUtil.drawCenteredText(
           g,
-          v.toHexString(),
+          toBinaryString(longValue, width.getWidth()),
           x + bds.getX() + bds.getWidth() / 2,
           y + bds.getY() + bds.getHeight() / 2 - 2);
     }
     painter.drawPorts();
+    painter.drawLabel();
   }
 
   @Override
@@ -288,5 +316,4 @@ public class Constant extends InstanceFactory {
     instance.setPorts(ps);
   }
 
-  // TODO: Allow editing of value via text tool/attribute table
 }

@@ -177,7 +177,7 @@ public class AttrTable extends JPanel implements LocaleListener {
       int rowIndexes[] = null;
       multiEditActive = false;
 
-      if ((columnIndex == 0) || (rowIndex == 0)) {
+      if (columnIndex == 0) {
         return new JLabel(row.getLabel());
       } else {
         if (currentEditor != null) {
@@ -422,9 +422,9 @@ public class AttrTable extends JPanel implements LocaleListener {
     @Override
     public String getColumnName(int columnIndex) {
       if (columnIndex == 0) {
-        return "Attribute";
+        return S.get("attributeTableNameHeader");
       } else {
-        return "Value";
+        return S.get("attributeTableValueHeader");
       }
     }
 
@@ -444,7 +444,7 @@ public class AttrTable extends JPanel implements LocaleListener {
 
     @Override
     public boolean isCellEditable(int rowIndex, int columnIndex) {
-      return columnIndex > 0 && attrModel.getRow(rowIndex).isValueEditable() && rowIndex > 0;
+      return columnIndex > 0 && attrModel.getRow(rowIndex).isValueEditable();
     }
 
     @Override
@@ -505,7 +505,8 @@ public class AttrTable extends JPanel implements LocaleListener {
     tableModel = new TableModelAdapter(parent, NULL_ATTR_MODEL);
     table = new JTable(tableModel);
     table.setDefaultEditor(Object.class, editor);
-    table.setTableHeader(null);
+    table.getTableHeader().setReorderingAllowed(false);
+    table.getTableHeader().setFont(AppPreferences.getScaledFont(table.getFont()).deriveFont(Font.BOLD));
     table.setRowHeight(AppPreferences.getScaled(AppPreferences.BoxSize));
 
     Font baseFont = title.getFont();
@@ -516,10 +517,11 @@ public class AttrTable extends JPanel implements LocaleListener {
     Color bgColor = new Color(240, 240, 240);
     setBackground(bgColor);
     table.setBackground(bgColor);
-    table.setDefaultRenderer(String.class, new HDLColorRenderer());
+    table.setDefaultRenderer(String.class, new HDLColorRenderer(false));
 
     JPanel propPanel = new JPanel(new BorderLayout(0, 0));
     JScrollPane tableScroll = new JScrollPane(table);
+    tableScroll.setColumnHeaderView(table.getTableHeader());
 
     propPanel.add(title, BorderLayout.PAGE_START);
     propPanel.add(tableScroll, BorderLayout.CENTER);
@@ -542,6 +544,10 @@ public class AttrTable extends JPanel implements LocaleListener {
   public void localeChanged() {
     updateTitle();
     tableModel.fireTableChanged();
+    for (int column = 0; column < table.getColumnCount(); column++) {
+      table.getColumnModel().getColumn(column).setHeaderValue(tableModel.getColumnName(column));
+    }
+    table.getTableHeader().repaint();
   }
 
   public void setAttrTableModel(AttrTableModel value) {

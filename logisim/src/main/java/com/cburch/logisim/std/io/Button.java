@@ -125,6 +125,11 @@ public class Button extends InstanceFactory {
   }
 
   @Override
+  public AttributeSet createAttributeSet() {
+    return new FixedLabelAttributes(super.createAttributeSet());
+  }
+
+  @Override
   protected void configureNewInstance(Instance instance) {
     instance.addAttributeListener();
     instance.computeLabelTextField(Instance.AVOID_CENTER | Instance.AVOID_LEFT);

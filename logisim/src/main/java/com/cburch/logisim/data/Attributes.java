@@ -536,6 +536,26 @@ public class Attributes {
     return new FontAttribute(name, disp);
   }
 
+  /** Keep the file attribute, but use one fixed font and omit its editor. */
+  public static Attribute<Font> forFixedFont(String name, StringGetter disp, Font font) {
+    return new FontAttribute(name, disp) {
+      @Override
+      public Font parse(String value) {
+        return font;
+      }
+
+      @Override
+      public boolean isHidden() {
+        return true;
+      }
+
+      @Override
+      public String toStandardString(Font value) {
+        return super.toStandardString(font);
+      }
+    };
+  }
+
   public static Attribute<Integer> forHexInteger(String name) {
     return forHexInteger(name, getter(name));
   }

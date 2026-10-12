@@ -34,9 +34,13 @@ import com.cburch.logisim.tools.AddTool;
 import com.cburch.logisim.tools.Library;
 import com.cburch.logisim.tools.Tool;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class Gates extends Library {
+  private static final Set<String> HIDDEN_TOOLS = Set.of(
+      "Buffer", "Odd Parity", "Even Parity", "Controlled Buffer", "Controlled Inverter", "PLA");
   private List<Tool> tools = null;
 
   public Gates() {
@@ -72,6 +76,15 @@ public class Gates extends Library {
   @Override
   public List<Tool> getTools() {
     return tools;
+  }
+
+  @Override
+  public List<Tool> getVisibleTools() {
+    List<Tool> visible = new ArrayList<>();
+    for (Tool tool : getTools()) {
+      if (!HIDDEN_TOOLS.contains(tool.getName())) visible.add(tool);
+    }
+    return visible;
   }
 
   public boolean removeLibrary(String Name) {

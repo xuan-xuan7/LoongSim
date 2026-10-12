@@ -35,7 +35,6 @@ import com.cburch.logisim.data.BitWidth;
 import com.cburch.logisim.gui.hex.HexFrame;
 import com.cburch.logisim.instance.Instance;
 import com.cburch.logisim.instance.StdAttr;
-import com.cburch.logisim.prefs.AppPreferences;
 import com.cburch.logisim.proj.Project;
 import java.awt.Font;
 import java.util.Arrays;
@@ -99,7 +98,7 @@ class RomAttributes extends AbstractAttributeSet {
   private String Label = "";
   private Font LabelFont = StdAttr.DEFAULT_LABEL_FONT;
   private Boolean LabelVisable = false;
-  private AttributeOption Appearance = AppPreferences.getDefaultAppearance();
+  private AttributeOption Appearance = StdAttr.APPEAR_CLASSIC;
 
   RomAttributes() {
     contents = MemContents.create(addrBits.getWidth(), dataBits.getWidth());
@@ -175,15 +174,15 @@ class RomAttributes extends AbstractAttributeSet {
       contents.setDimensions(addrBits.getWidth(), dataBits.getWidth());
       fireAttributeValueChanged(attr, value, null);
     } else if (attr == Mem.LINE_ATTR) {
-      AttributeOption val = (AttributeOption) value;
+      AttributeOption val = Mem.SINGLE;
       if (lineSize.equals(val)) return;
       lineSize = val;
-      fireAttributeValueChanged(attr, value, null);
+      fireAttributeValueChanged(Mem.LINE_ATTR, val, null);
     } else if (attr == Mem.ALLOW_MISALIGNED) {
-      Boolean val = (Boolean) value;
+      Boolean val = Boolean.FALSE;
       if (allowMisaligned.equals(val)) return;
       allowMisaligned = val;
-      fireAttributeValueChanged(attr, value, null);
+      fireAttributeValueChanged(Mem.ALLOW_MISALIGNED, val, null);
     } else if (attr == Rom.CONTENTS_ATTR) {
       MemContents newContents = (MemContents) value;
       if (contents.equals(newContents)) return;
@@ -207,10 +206,10 @@ class RomAttributes extends AbstractAttributeSet {
       LabelVisable = newVis;
       fireAttributeValueChanged(attr, value, null);
     } else if (attr == StdAttr.APPEARANCE) {
-      AttributeOption NewAppearance = (AttributeOption) value;
+      AttributeOption NewAppearance = StdAttr.APPEAR_CLASSIC;
       if (Appearance.equals(NewAppearance)) return;
       Appearance = NewAppearance;
-      fireAttributeValueChanged(attr, value, null);
+      fireAttributeValueChanged(StdAttr.APPEARANCE, NewAppearance, null);
     }
   }
 }

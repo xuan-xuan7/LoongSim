@@ -53,6 +53,7 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
+import java.util.Map;
 
 public class SevenSegment extends InstanceFactory implements DynamicElementProvider {
   static void drawBase(InstancePainter painter, boolean DrawPoint) {
@@ -168,7 +169,7 @@ public class SevenSegment extends InstanceFactory implements DynamicElementProvi
           "",
           Direction.EAST,
           StdAttr.DEFAULT_LABEL_FONT,
-          false,
+          true,
           new ComponentMapInformationContainer( 0, 8, 0, null, GetLabels(), null )
         });
     setOffsetBounds(Bounds.create(-5, 0, 40, 60));
@@ -199,6 +200,12 @@ public class SevenSegment extends InstanceFactory implements DynamicElementProvi
     }
     instance.setPorts(ps);
     instance.getAttributeValue(StdAttr.MAPINFO).setNrOfOutports(hasDp ? 8 : 7, GetLabels());
+  }
+
+  @Override
+  public AttributeSet createAttributeSet() {
+    return new FixedLabelAttributes(super.createAttributeSet(),
+        Map.of(Io.ATTR_ACTIVE, Boolean.TRUE, ATTR_DP, Boolean.TRUE));
   }
 
   @Override

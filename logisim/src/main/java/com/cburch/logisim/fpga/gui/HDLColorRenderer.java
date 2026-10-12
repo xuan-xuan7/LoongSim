@@ -49,8 +49,14 @@ public class HDLColorRenderer extends JLabel implements TableCellRenderer {
   private static final ArrayList<String> CorrectStrings = new ArrayList<String>();
 
   Border border = null;
+  private final boolean showSupportRow;
 
   public HDLColorRenderer() {
+    this(true);
+  }
+
+  public HDLColorRenderer(boolean showSupportRow) {
+    this.showSupportRow = showSupportRow;
     setOpaque(true);
     CorrectStrings.clear();
     CorrectStrings.add(VERILOGSupportString);
@@ -62,7 +68,7 @@ public class HDLColorRenderer extends JLabel implements TableCellRenderer {
   public Component getTableCellRendererComponent(
       JTable table, Object Info, boolean isSelected, boolean hasFocus, int row, int column) {
     /* we have a difference between the first row and the rest */
-    if (row == 0) {
+    if (showSupportRow && row == 0) {
       String value = (String) Info;
       boolean passive = value.equals(NoSupportString);
       Color newColor = (passive) ? Color.red : Color.green;

@@ -66,6 +66,7 @@ class PinAttributes extends ProbeAttributes {
             Pin.ATTR_TRISTATE,
             Pin.ATTR_PULL,
             StdAttr.LABEL,
+            StdAttr.LABEL_LOC,
             StdAttr.LABEL_FONT,
             RadixOption.ATTRIBUTE,
             PROBEAPPEARANCE,
@@ -76,6 +77,8 @@ class PinAttributes extends ProbeAttributes {
   boolean threeState = false; // true;
   int type = EndData.INPUT_ONLY;
   Object pull = Pin.PULL_NONE;
+  // An unset location preserves the original placement opposite the connector.
+  private Object labelLocation;
   AttributeOption Appearance = ProbeAttributes.APPEAR_EVOLUTION_NEW;
 
   public PinAttributes() {}
@@ -97,7 +100,9 @@ class PinAttributes extends ProbeAttributes {
     if (attr == Pin.ATTR_TRISTATE) return (V) Boolean.valueOf(threeState);
     if (attr == Pin.ATTR_TYPE) return (V) Boolean.valueOf(type == EndData.OUTPUT_ONLY);
     if (attr == Pin.ATTR_PULL) return (V) pull;
-    if (attr == PROBEAPPEARANCE) return (V) Appearance;
+    if (attr == StdAttr.LABEL_LOC)
+      return (V) (labelLocation == null ? facing.reverse() : labelLocation);
+    if (attr == PROBEAPPEARANCE) return (V) APPEAR_EVOLUTION_NEW;
     if (attr == ATTR_DUMMY) return (V) "nochange";
     return super.getValue(attr);
   }
@@ -117,6 +122,7 @@ class PinAttributes extends ProbeAttributes {
 	  if (value.equals("output")) {
 	    if (type != EndData.OUTPUT_ONLY) {
 	      type = EndData.OUTPUT_ONLY;
+	      Appearance = APPEAR_EVOLUTION_NEW;
 	      fireAttributeValueChanged((Attribute<V>)Pin.ATTR_TYPE,(V)Boolean.valueOf(type == EndData.OUTPUT_ONLY),null);
 	      return;
 	    }
@@ -135,14 +141,23 @@ class PinAttributes extends ProbeAttributes {
       int Newtype = ((Boolean) value).booleanValue() ? EndData.OUTPUT_ONLY : EndData.INPUT_ONLY;
       if (type == Newtype) return;
       type = Newtype;
+    } else if (attr == StdAttr.LABEL_LOC) {
+      if (value.equals(labelLocation)) return;
+      labelLocation = value;
+    } else if (attr == StdAttr.FACING) {
+      super.setValue(attr, value);
+      if (labelLocation == null)
+        fireAttributeValueChanged(StdAttr.LABEL_LOC, getValue(StdAttr.LABEL_LOC), null);
+      return;
     } else if (attr == Pin.ATTR_PULL) {
       Object newPull = value;
       if (pull.equals(newPull)) return;
       pull = newPull;
     } else if (attr == PROBEAPPEARANCE) {
-      AttributeOption NewAppearance = (AttributeOption) value;
+      AttributeOption NewAppearance = APPEAR_EVOLUTION_NEW;
       if (Appearance.equals(NewAppearance)) return;
       Appearance = NewAppearance;
+      value = (V) NewAppearance;
     } else if (attr == RadixOption.ATTRIBUTE) {
       if (width.getWidth() == 1) {
         super.setValue(RadixOption.ATTRIBUTE, RadixOption.RADIX_2);

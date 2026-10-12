@@ -137,6 +137,11 @@ class NotGate extends InstanceFactory {
   // methods for instances
   //
   @Override
+  public AttributeSet createAttributeSet() {
+    return new FixedOutputAttributes(super.createAttributeSet());
+  }
+
+  @Override
   protected void configureNewInstance(Instance instance) {
     configurePorts(instance);
     instance.addAttributeListener();
