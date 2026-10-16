@@ -2,7 +2,7 @@ param(
     [string]$Java11Home,
     [string]$Java17Home,
     [string]$WixHome,
-    [string]$AppVersion = '1.0.0',
+    [string]$AppVersion = '1.0.1',
     [string]$JarPath,
     [string]$CertificateThumbprint = $env:WINDOWS_CERTIFICATE_THUMBPRINT,
     [string]$SignToolPath,
@@ -73,6 +73,10 @@ if (-not $JarPath) {
     $JarPath = (Get-ChildItem (Join-Path $repo 'logisim\build\libs') -Filter '*-all.jar' | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
 }
 $JarPath = (Resolve-Path -LiteralPath $JarPath).Path
+$applicationVersion = & (Join-Path $Java17Home 'bin\java.exe') '-Djava.awt.headless=true' -jar $JarPath -version
+if ($LASTEXITCODE -ne 0 -or ($applicationVersion -join "`n").Trim() -ne "LoongSim $AppVersion") {
+    throw "Application JAR version does not match installer version $AppVersion. Rebuild the current source before packaging."
+}
 $env:PATH = "$WixHome;$env:PATH"
 $jpackage = Join-Path $Java17Home 'bin\jpackage.exe'
 $icon = Join-Path $repo 'logisim\src\main\resources\resources\logisim\img\LoongSim.ico'
@@ -86,6 +90,11 @@ $jarName = Split-Path $JarPath -Leaf
     --input $inputDir --main-jar $jarName --main-class com.cburch.logisim.Main --icon $icon --dest $imageDir
 if ($LASTEXITCODE -ne 0) { throw 'Application image build failed' }
 $image = Join-Path $imageDir 'LoongSim'
+$packagedJar = Join-Path $image ('app\' + $jarName)
+if ((Get-FileHash -LiteralPath $packagedJar -Algorithm SHA256).Hash -ne
+    (Get-FileHash -LiteralPath $JarPath -Algorithm SHA256).Hash) {
+    throw 'Packaged application JAR does not match the verified build input.'
+}
 $launcher = Join-Path $image 'LoongSim.exe'
 if ($CertificateThumbprint) { Sign-And-Verify $launcher }
 

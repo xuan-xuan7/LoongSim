@@ -15,7 +15,7 @@ def main():
     allow_unsigned = os.environ.get('ALLOW_UNSIGNED_RELEASE') == 'true'
     directory = Path(sys.argv[1])
     backup = Path(sys.argv[2])
-    tag = os.environ.get('RELEASE_TAG', 'v1.0.0-logisim-only')
+    tag = os.environ.get('RELEASE_TAG', 'v1.0.1-logisim-only')
     base = f'https://api.github.com/repos/{repository}'
     headers = {'Authorization': f'Bearer {token}', 'Accept': 'application/vnd.github+json',
                'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'LoongSim-release'}

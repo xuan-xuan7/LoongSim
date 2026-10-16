@@ -21,7 +21,7 @@ javac -version
 生成文件：
 
 ```text
-build/libs/LoongSim-1.0.0-java11-all.jar
+build/libs/LoongSim-1.0.1-java11-all.jar
 ```
 
 该 JAR 不包含 CPU 原生代码，因此能在 x86、ARM、LoongArch 上共用；运行它的 Java

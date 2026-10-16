@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
 jar=${1:?Pass the built Shadow JAR path}
-version=${APP_VERSION:-1.0.0}
+version=${APP_VERSION:-1.0.1}
 signed=${SIGNED_BUILD:-false}
 [[ $(uname -s) == Darwin ]] || { echo 'macOS packaging must run on macOS' >&2; exit 1; }
 case $(uname -m) in
