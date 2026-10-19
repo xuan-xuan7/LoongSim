@@ -218,7 +218,12 @@ public class Register extends InstanceFactory implements DynamicElementProvider 
   static final int Ysize = 90;
 
   public static final Attribute<Boolean> ATTR_SHOW_IN_TAB =
-      Attributes.forBoolean("showInTab", S.getter("registerShowInTab"));
+      new Attribute<Boolean>("showInTab", S.getter("registerShowInTab")) {
+        @Override
+        public Boolean parse(String value) { return Boolean.TRUE; }
+        @Override
+        public boolean isHidden() { return true; }
+      };
 
   public Register() {
     super("Register", S.getter("registerComponent"));
@@ -238,8 +243,8 @@ public class Register extends InstanceFactory implements DynamicElementProvider 
           "",
           Direction.NORTH,
           StdAttr.DEFAULT_LABEL_FONT,
-          false,
-          AppPreferences.getDefaultAppearance()
+          true,
+          StdAttr.APPEAR_EVOLUTION
         });
     setKeyConfigurator(
         JoinedConfigurator.create(
@@ -248,6 +253,11 @@ public class Register extends InstanceFactory implements DynamicElementProvider 
     setIcon(new FlipFlopIcon(FlipFlopIcon.REGISTER));
     setInstancePoker(RegisterPoker.class);
     setInstanceLogger(RegisterLogger.class);
+  }
+
+  @Override
+  public AttributeSet createAttributeSet() {
+    return new EvolutionAttributes(super.createAttributeSet());
   }
 
   @Override

@@ -92,6 +92,7 @@ public class ProjectLibraryActions {
     List<Library> baseBuilt = file.getLoader().getBuiltin().getLibraries();
     ArrayList<Library> builtins = new ArrayList<Library>(baseBuilt);
     builtins.removeAll(file.getLibraries());
+    builtins.removeIf(Library::isHidden);
     if (builtins.isEmpty()) {
       OptionPane.showMessageDialog(
           proj.getFrame(),

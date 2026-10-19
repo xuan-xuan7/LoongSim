@@ -32,6 +32,7 @@ import com.cburch.logisim.gui.chronogram.chronogui.ChronoFrame;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.LineNumberReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.TreeMap;
 
@@ -51,7 +52,7 @@ public class ChronoData extends TreeMap<String, SignalData> {
   public ChronoData(String logisimLogFile, ChronoFrame chronoFr)
       throws IOException, NoSysclkException {
     LineNumberReader lineReader = null;
-    lineReader = new LineNumberReader(new FileReader(logisimLogFile));
+    lineReader = new LineNumberReader(new FileReader(logisimLogFile, StandardCharsets.UTF_8));
 
     ArrayList<ArrayList<String>> rawData = new ArrayList<ArrayList<String>>();
     boolean sysclkFound = false;

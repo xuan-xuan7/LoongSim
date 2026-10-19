@@ -35,6 +35,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 public class FileUtil {
 
@@ -49,7 +50,7 @@ public class FileUtil {
     BufferedWriter out = null;
 
     try {
-      out = new BufferedWriter(new FileWriter(tmp));
+      out = new BufferedWriter(new FileWriter(tmp, StandardCharsets.UTF_8));
       out.write(content, 0, content.length());
     } catch (IOException ex) {
       throw ex;

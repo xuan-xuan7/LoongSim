@@ -42,6 +42,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Scanner;
 import javax.swing.BorderFactory;
@@ -136,11 +137,14 @@ public class CsvReadParameterDialog extends JDialog implements ActionListener {
 
   private void updateLabels() {
     try {
-      Scanner scan = new Scanner(file);
+      Scanner scan = new Scanner(file, StandardCharsets.UTF_8.name());
       for (int y = 0; y < 4; y++) {
         List<String> line = null;
-        if (scan.hasNext())
-          line = CsvInterpretor.parseCsvLine(scan.next(), param.seperator(), param.quote());
+        if (scan.hasNextLine()) {
+          String text = scan.nextLine();
+          if (y == 0 && text.startsWith("\uFEFF")) text = text.substring(1);
+          line = CsvInterpretor.parseCsvLine(text, param.seperator(), param.quote());
+        }
         for (int x = 0; x < 4; x++) {
           if (line == null || x >= line.size()) JLabels[y * 4 + x].setText("");
           else JLabels[y * 4 + x].setText(line.get(x));

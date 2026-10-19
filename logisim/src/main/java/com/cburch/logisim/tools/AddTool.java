@@ -63,6 +63,7 @@ import com.cburch.logisim.tools.key.KeyConfigurationResult;
 import com.cburch.logisim.tools.key.KeyConfigurator;
 import com.cburch.logisim.util.AutoLabel;
 import com.cburch.logisim.util.StringUtil;
+import com.cburch.logisim.util.StringGetter;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Graphics;
@@ -98,6 +99,7 @@ public class AddTool extends Tool implements PropertyChangeListener {
   private boolean sourceLoadAttempted;
   private ComponentFactory factory;
   private AttributeSet attrs;
+  private StringGetter displayName;
   private Bounds bounds;
   private boolean shouldSnap;
   private int lastX = INVALID_COORD;
@@ -110,6 +112,7 @@ public class AddTool extends Tool implements PropertyChangeListener {
   private AutoLabel AutoLabler = new AutoLabel();
 
   private AddTool(AddTool base) {
+    this.displayName = base.displayName;
     this.descriptionBase = base.descriptionBase;
     this.description = base.description;
     this.sourceLoadAttempted = base.sourceLoadAttempted;
@@ -124,6 +127,12 @@ public class AddTool extends Tool implements PropertyChangeListener {
     if (this.attrs.containsAttribute(ProbeAttributes.PROBEAPPEARANCE)) {
       AppPreferences.NEW_INPUT_OUTPUT_SHAPES.addPropertyChangeListener(this);
     }
+  }
+
+  /** A toolbox preset with its own label and independent, cloned attributes. */
+  public AddTool(AddTool base, StringGetter displayName) {
+    this(base);
+    this.displayName = displayName;
   }
 
   public AddTool(Class<? extends Library> base, FactoryDescription description) {
@@ -330,6 +339,7 @@ public class AddTool extends Tool implements PropertyChangeListener {
 
   @Override
   public String getDisplayName() {
+    if (displayName != null) return displayName.toString();
     FactoryDescription desc = description;
     return desc == null ? factory.getDisplayName() : desc.getDisplayName();
   }

@@ -54,9 +54,8 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
@@ -64,7 +63,10 @@ import javax.swing.SwingUtilities;
 
 public class ProjectActions {
   private static String FILE_NAME_FORMAT_ERROR = "FileNameError";
-  private static String FILE_NAME_KEYWORD_ERROR = "ExistingToolName";
+  private static final Pattern INVALID_FILENAME_CHARS =
+      Pattern.compile("[\\x00-\\x1f\\x7f<>:\"/\\\\|?*]");
+  private static final Pattern RESERVED_FILENAME =
+      Pattern.compile("(?i)(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\\..*)?");
 
   private static class CreateFrame implements Runnable {
     private Loader loader;
@@ -99,28 +101,17 @@ public class ProjectActions {
   }
 
   /**
-   * Returns true if the filename contains valid characters only, that is, alphanumeric characters
-   * and underscores.
+   * Validate filesystem names, not HDL identifiers. Unicode, spaces and hyphens are allowed.
    */
-  private static boolean checkValidFilename(
-      String filename, Project proj, HashMap<String, String> Errors) {
-    boolean IsOk = true;
-    HashMap<String, Library> TempSet = new HashMap<String, Library>();
-    HashSet<String> ForbiddenNames = new HashSet<String>();
-    LibraryTools.BuildLibraryList(proj.getLogisimFile(), TempSet);
-    LibraryTools.BuildToolList(proj.getLogisimFile(), ForbiddenNames);
-    ForbiddenNames.addAll(TempSet.keySet());
-    Pattern p = Pattern.compile("[^a-z0-9_.]", Pattern.CASE_INSENSITIVE);
-    Matcher m = p.matcher(filename);
-    if (m.find()) {
-      IsOk = false;
-      Errors.put(FILE_NAME_FORMAT_ERROR, S.get("InvalidFileFormatError"));
+  static boolean checkValidFilename(String filename, HashMap<String, String> errors) {
+    if (filename.isEmpty() || filename.equals(".") || filename.equals("..")
+        || filename.endsWith(".") || filename.endsWith(" ")
+        || INVALID_FILENAME_CHARS.matcher(filename).find()
+        || RESERVED_FILENAME.matcher(filename).matches()) {
+      errors.put(FILE_NAME_FORMAT_ERROR, "InvalidFileFormatError");
+      return false;
     }
-    if (ForbiddenNames.contains(filename.toUpperCase())) {
-      IsOk = false;
-      Errors.put(FILE_NAME_KEYWORD_ERROR, S.get("UsedLibraryToolnameError"));
-    }
-    return IsOk;
+    return true;
   }
 
   private static Project completeProject(
@@ -450,7 +441,7 @@ public class ProjectActions {
       if (returnVal != JFileChooser.APPROVE_OPTION) {
         return false;
       }
-      validFilename = checkValidFilename(chooser.getSelectedFile().getName(), proj, Error);
+      validFilename = checkValidFilename(chooser.getSelectedFile().getName(), Error);
       if (!validFilename) {
         String Message = "\"" + chooser.getSelectedFile() + "\":\n";
         for (String key : Error.keySet()) {
@@ -464,7 +455,7 @@ public class ProjectActions {
 
     File f = chooser.getSelectedFile();
     String circExt = Loader.LOGISIM_EXTENSION;
-    if (!f.getName().endsWith(circExt)) {
+    if (!f.getName().toLowerCase(Locale.ROOT).endsWith(circExt)) {
       String old = f.getName();
       int ext0 = old.lastIndexOf('.');
       if (ext0 < 0 || !Pattern.matches("\\.\\p{L}{2,}[0-9]?", old.substring(ext0))) {

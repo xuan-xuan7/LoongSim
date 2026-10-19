@@ -37,6 +37,7 @@ import com.cburch.logisim.data.Attributes;
 import com.cburch.logisim.data.BitWidth;
 import com.cburch.logisim.data.Direction;
 import com.cburch.logisim.instance.StdAttr;
+import com.cburch.logisim.util.StringGetter;
 import java.awt.Font;
 import java.util.List;
 
@@ -62,17 +63,38 @@ class GateAttributes extends AbstractAttributeSet {
   static final AttributeOption XOR_ONE = new AttributeOption("1", S.getter("xorBehaviorOne"));
   static final AttributeOption XOR_ODD = new AttributeOption("odd", S.getter("xorBehaviorOdd"));
   public static final Attribute<AttributeOption> ATTR_XOR =
-      Attributes.forOption(
-          "xor", S.getter("xorBehaviorAttr"), new AttributeOption[] {XOR_ONE, XOR_ODD});
+      fixedOption("xor", S.getter("xorBehaviorAttr"),
+          new AttributeOption[] {XOR_ONE, XOR_ODD}, XOR_ODD);
 
   static final AttributeOption OUTPUT_01 = new AttributeOption("01", S.getter("gateOutput01"));
   static final AttributeOption OUTPUT_0Z = new AttributeOption("0Z", S.getter("gateOutput0Z"));
   static final AttributeOption OUTPUT_Z1 = new AttributeOption("Z1", S.getter("gateOutputZ1"));
   public static final Attribute<AttributeOption> ATTR_OUTPUT =
-      Attributes.forOption(
+      fixedOption(
           "out",
           S.getter("gateOutputAttr"),
-          new AttributeOption[] {OUTPUT_01, OUTPUT_0Z, OUTPUT_Z1});
+          new AttributeOption[] {OUTPUT_01, OUTPUT_0Z, OUTPUT_Z1}, OUTPUT_01);
+
+  private static Attribute<AttributeOption> fixedOption(String name, StringGetter display,
+      AttributeOption[] options, AttributeOption fixedValue) {
+    Attribute<AttributeOption> original = Attributes.forOption(name, display, options);
+    return new Attribute<AttributeOption>(name, display) {
+      @Override
+      public AttributeOption parse(String value) {
+        original.parse(value); // Continue accepting valid values from old files.
+        return fixedValue;
+      }
+
+      @Override
+      public String toDisplayString(AttributeOption value) { return original.toDisplayString(fixedValue); }
+
+      @Override
+      public String toStandardString(AttributeOption value) { return fixedValue.toString(); }
+
+      @Override
+      public boolean isHidden() { return true; }
+    };
+  }
 
   Direction facing = Direction.EAST;
   BitWidth width = BitWidth.ONE;
@@ -85,7 +107,7 @@ class GateAttributes extends AbstractAttributeSet {
   Font labelFont = StdAttr.DEFAULT_LABEL_FONT;
 
   GateAttributes(boolean isXor) {
-    xorBehave = isXor ? XOR_ONE : null;
+    xorBehave = isXor ? XOR_ODD : null;
   }
 
   @Override
@@ -140,16 +162,14 @@ class GateAttributes extends AbstractAttributeSet {
       inputs = ((Integer) value).intValue();
       fireAttributeListChanged();
     } else if (attr == ATTR_XOR) {
-      xorBehave = (AttributeOption) value;
+      xorBehave = xorBehave == null ? null : XOR_ODD;
+      value = (V) xorBehave;
     } else if (attr == ATTR_OUTPUT) {
-      out = (AttributeOption) value;
+      out = OUTPUT_01;
+      value = (V) out;
     } else if (attr instanceof NegateAttribute) {
-      int index = ((NegateAttribute) attr).index;
-      if (((Boolean) value).booleanValue()) {
-        negated |= 1 << index;
-      } else {
-        negated &= ~(1 << index);
-      }
+      negated = 0;
+      value = (V) Boolean.FALSE;
     } else {
       throw new IllegalArgumentException("unrecognized argument");
     }

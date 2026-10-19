@@ -36,6 +36,7 @@ import com.cburch.logisim.file.LibraryListener;
 import com.cburch.logisim.file.LogisimFile;
 import com.cburch.logisim.tools.AddTool;
 import com.cburch.logisim.tools.Library;
+import com.cburch.logisim.tools.Tool;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -50,6 +51,8 @@ public class ProjectExplorerLibraryNode extends ProjectExplorerModel.Node<Librar
   private static final long serialVersionUID = 1L;
   private LogisimFile file;
   private JTree guiElement = null;
+  private List<Library> librarySources;
+  private List<Library> visibleLibraries;
 
   ProjectExplorerLibraryNode(ProjectExplorerModel model, Library lib, JTree gui) {
     super(model, lib);
@@ -64,11 +67,17 @@ public class ProjectExplorerLibraryNode extends ProjectExplorerModel.Node<Librar
   private void buildChildren() {
     Library lib = getValue();
     if (lib != null && !(lib.isHidden())) {
-      buildChildren(new ProjectExplorerToolNode(getModel(), null), lib.getTools(), 0);
+      List<? extends Tool> visibleTools = lib.getVisibleTools();
+      List<Library> libraries = lib.getLibraries();
+      if (librarySources == null || !librarySources.equals(libraries)) {
+        librarySources = new ArrayList<>(libraries);
+        visibleLibraries = ToolboxGroup.groupLibraries(libraries);
+      }
+      buildChildren(new ProjectExplorerToolNode(getModel(), null), visibleTools, 0);
       buildChildren(
           new ProjectExplorerLibraryNode(getModel(), null,guiElement),
-          lib.getLibraries(),
-          lib.getTools().size());
+          visibleLibraries,
+          visibleTools.size());
     }
   }
 

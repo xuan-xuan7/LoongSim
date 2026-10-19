@@ -82,6 +82,11 @@ public abstract class Library {
 
   public abstract List<? extends Tool> getTools();
 
+  /** Tools shown in the toolbox; file loading and saving still use the complete getTools() list. */
+  public List<? extends Tool> getVisibleTools() {
+    return getTools();
+  }
+
   public int indexOf(ComponentFactory query) {
     int index = -1;
     for (Tool obj : getTools()) {

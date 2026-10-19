@@ -45,7 +45,6 @@ import com.cburch.logisim.data.Direction;
 import com.cburch.logisim.gui.generic.OptionPane;
 import com.cburch.logisim.instance.Instance;
 import com.cburch.logisim.instance.StdAttr;
-import com.cburch.logisim.prefs.AppPreferences;
 import com.cburch.logisim.std.wiring.Pin;
 import java.awt.Font;
 import java.util.Arrays;
@@ -132,7 +131,7 @@ public class CircuitAttributes extends AbstractAttributeSet {
 
   static AttributeSet createBaseAttrs(Circuit source, String name) {
     AttributeSet ret = AttributeSets.fixedSet(STATIC_ATTRS, STATIC_DEFAULTS);
-    ret.setValue(APPEARANCE_ATTR, AppPreferences.getDefaultCircuitAppearance());
+    ret.setValue(APPEARANCE_ATTR, APPEAR_FPGA);
     ret.setValue(CircuitAttributes.NAME_ATTR, name);
     ret.addAttributeListener(new StaticListener(source));
     return ret;
@@ -151,7 +150,7 @@ public class CircuitAttributes extends AbstractAttributeSet {
       Attributes.forDirection("clabelup", S.getter("circuitLabelDirAttr"));
 
   public static final Attribute<Font> CIRCUIT_LABEL_FONT_ATTR =
-      Attributes.forFont("clabelfont", S.getter("circuitLabelFontAttr"));
+      Attributes.forFixedFont("clabelfont", S.getter("circuitLabelFontAttr"), StdAttr.DEFAULT_LABEL_FONT);
   public static final Attribute<Boolean> CIRCUIT_IS_VHDL_BOX =
       Attributes.forBoolean("circuitvhdl", S.getter("circuitIsVhdl"));
   public static final Attribute<String> CIRCUIT_VHDL_PATH =
@@ -180,7 +179,7 @@ public class CircuitAttributes extends AbstractAttributeSet {
   };
 
   private static final Object[] STATIC_DEFAULTS = {
-    "", "", Direction.EAST, StdAttr.DEFAULT_LABEL_FONT, APPEAR_CLASSIC, false, ""
+    "", "", Direction.EAST, StdAttr.DEFAULT_LABEL_FONT, APPEAR_FPGA, false, ""
   };
 
   private static final List<Attribute<?>> INSTANCE_ATTRS =
@@ -309,8 +308,8 @@ public class CircuitAttributes extends AbstractAttributeSet {
       labelFont = val;
       fireAttributeValueChanged(StdAttr.LABEL_FONT, val, null);
     } else if (attr == StdAttr.LABEL_VISIBILITY) {
-      Boolean val = (Boolean) value;
-      if (LabelVisable == value) return;
+      Boolean val = Boolean.TRUE;
+      if (LabelVisable == val) return;
       LabelVisable = val;
       fireAttributeValueChanged(StdAttr.LABEL_VISIBILITY, val, null);
     } else if (attr == LABEL_LOCATION_ATTR) {

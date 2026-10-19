@@ -31,6 +31,7 @@ package com.cburch.logisim.std.plexers;
 import static com.cburch.logisim.std.Strings.S;
 
 import com.cburch.logisim.data.Attribute;
+import com.cburch.logisim.LogisimVersion;
 import com.cburch.logisim.data.AttributeSet;
 import com.cburch.logisim.data.BitWidth;
 import com.cburch.logisim.data.Bounds;
@@ -57,8 +58,8 @@ public class PriorityEncoder extends InstanceFactory {
   public PriorityEncoder() {
     super("Priority Encoder", S.getter("priorityEncoderComponent"));
     setAttributes(
-        new Attribute[] {StdAttr.FACING, Plexers.ATTR_SELECT, Plexers.ATTR_DISABLED},
-        new Object[] {Direction.EAST, BitWidth.create(3), Plexers.DISABLED_ZERO});
+        new Attribute[] {StdAttr.FACING, Plexers.ATTR_SELECT, Plexers.ATTR_DISABLED, PlexerDrawing.BODY_PADDING},
+        new Object[] {Direction.EAST, BitWidth.create(3), Plexers.DISABLED_ZERO, 20});
     setKeyConfigurator(new BitWidthConfigurator(Plexers.ATTR_SELECT, 1, 5, 0));
     setIcon(new ArithmeticIcon("Pri"));
     setFacingAttribute(StdAttr.FACING);
@@ -71,20 +72,27 @@ public class PriorityEncoder extends InstanceFactory {
   }
 
   @Override
+  public Object getDefaultAttributeValue(Attribute<?> attr, LogisimVersion ver) {
+    if (attr == PlexerDrawing.BODY_PADDING) return 0;
+    return super.getDefaultAttributeValue(attr, ver);
+  }
+
+  @Override
   public Bounds getOffsetBounds(AttributeSet attrs) {
     Direction dir = attrs.getValue(StdAttr.FACING);
     BitWidth select = attrs.getValue(Plexers.ATTR_SELECT);
     int inputs = 1 << select.getWidth();
     int offs = -5 * inputs;
     int len = 10 * inputs + 10;
+    int width = 40 + attrs.getValue(PlexerDrawing.BODY_PADDING);
     if (dir == Direction.NORTH) {
-      return Bounds.create(offs, 0, len, 40);
+      return Bounds.create(offs, 0, len, width);
     } else if (dir == Direction.SOUTH) {
-      return Bounds.create(offs, -40, len, 40);
+      return Bounds.create(offs, -width, len, width);
     } else if (dir == Direction.WEST) {
-      return Bounds.create(0, offs, 40, len);
+      return Bounds.create(0, offs, width, len);
     } else { // dir == Direction.EAST
-      return Bounds.create(-40, offs, 40, len);
+      return Bounds.create(-width, offs, width, len);
     }
   }
 
@@ -101,10 +109,8 @@ public class PriorityEncoder extends InstanceFactory {
 
   @Override
   protected void instanceAttributeChanged(Instance instance, Attribute<?> attr) {
-    if (attr == StdAttr.FACING || attr == Plexers.ATTR_SELECT) {
+    if (attr == StdAttr.FACING || attr == Plexers.ATTR_SELECT || attr == PlexerDrawing.BODY_PADDING) {
       instance.recomputeBounds();
-      updatePorts(instance);
-    } else if (attr == Plexers.ATTR_SELECT) {
       updatePorts(instance);
     } else if (attr == Plexers.ATTR_DISABLED) {
       instance.fireInvalidated();
@@ -113,36 +119,11 @@ public class PriorityEncoder extends InstanceFactory {
 
   @Override
   public void paintInstance(InstancePainter painter) {
-    Graphics g = painter.getGraphics();
     Direction facing = painter.getAttributeValue(StdAttr.FACING);
-
     painter.drawBounds();
-    Bounds bds = painter.getBounds();
-    g.setColor(Color.GRAY);
-    int x0;
-    int y0;
-    int halign;
-    if (facing == Direction.WEST) {
-      x0 = bds.getX() + bds.getWidth() - 3;
-      y0 = bds.getY() + 15;
-      halign = GraphicsUtil.H_RIGHT;
-    } else if (facing == Direction.NORTH) {
-      x0 = bds.getX() + 10;
-      y0 = bds.getY() + bds.getHeight() - 2;
-      halign = GraphicsUtil.H_CENTER;
-    } else if (facing == Direction.SOUTH) {
-      x0 = bds.getX() + 10;
-      y0 = bds.getY() + 12;
-      halign = GraphicsUtil.H_CENTER;
-    } else {
-      x0 = bds.getX() + 3;
-      y0 = bds.getY() + 15;
-      halign = GraphicsUtil.H_LEFT;
-    }
-    GraphicsUtil.drawText(g, "0", x0, y0, halign, GraphicsUtil.V_BASELINE);
-    g.setColor(Color.BLACK);
-    GraphicsUtil.drawCenteredText(
-        g, "Pri", bds.getX() + bds.getWidth() / 2, bds.getY() + bds.getHeight() / 2);
+    int inputs = 1 << painter.getAttributeValue(Plexers.ATTR_SELECT).getWidth();
+    PlexerDrawing.drawNumbers(painter, inputs, facing);
+    PlexerDrawing.drawLabel(painter, "PRI", facing);
     painter.drawPorts();
   }
 
@@ -183,9 +164,10 @@ public class PriorityEncoder extends InstanceFactory {
     BitWidth select = instance.getAttributeValue(Plexers.ATTR_SELECT);
     int n = 1 << select.getWidth();
     Port[] ps = new Port[n + 4];
+    int width = 40 + instance.getAttributeValue(PlexerDrawing.BODY_PADDING);
     if (dir == Direction.NORTH || dir == Direction.SOUTH) {
       int x = -5 * n + 10;
-      int y = dir == Direction.NORTH ? 40 : -40;
+      int y = dir == Direction.NORTH ? width : -width;
       for (int i = 0; i < n; i++) {
         ps[i] = new Port(x + 10 * i, y, Port.INPUT, 1);
       }
@@ -194,7 +176,7 @@ public class PriorityEncoder extends InstanceFactory {
       ps[n + EN_OUT] = new Port(x - 10, y / 2, Port.OUTPUT, 1);
       ps[n + GS] = new Port(10, 0, Port.OUTPUT, 1);
     } else {
-      int x = dir == Direction.EAST ? -40 : 40;
+      int x = dir == Direction.EAST ? -width : width;
       int y = -5 * n + 10;
       for (int i = 0; i < n; i++) {
         ps[i] = new Port(x, y + 10 * i, Port.INPUT, 1);

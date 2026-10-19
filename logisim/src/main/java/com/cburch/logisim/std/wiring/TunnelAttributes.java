@@ -69,7 +69,7 @@ class TunnelAttributes extends AbstractAttributeSet {
     int y;
     int halign;
     int valign;
-    int margin = Tunnel.ARROW_MARGIN;
+    int margin = Tunnel.LABEL_MARGIN;
     if (facing == Direction.NORTH) {
       x = 0;
       y = margin;

@@ -404,7 +404,9 @@ public final class LoongSimFpgaFlow {
 
   /** Read the external ports declared by a generated Verilog top module. */
   private static List<FpgaPort> readTopPorts(Path verilogFile, String topModule) throws IOException {
-    String source = Files.readString(verilogFile, StandardCharsets.UTF_8);
+    // Generated connection comments contain "input"/"output", not port declarations.
+    String source = Files.readString(verilogFile, StandardCharsets.UTF_8)
+        .replaceAll("(?s)/\\*.*?\\*/|//[^\\r\\n]*", " ");
     Matcher module = Pattern.compile("\\bmodule\\s+" + Pattern.quote(topModule)
         + "\\b(.*?)(?:\\bendmodule\\b)", Pattern.DOTALL).matcher(source);
     if (!module.find()) return new ArrayList<>();

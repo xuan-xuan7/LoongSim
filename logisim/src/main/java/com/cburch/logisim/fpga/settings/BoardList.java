@@ -52,7 +52,7 @@ public class BoardList {
     File file = new File(Element);
     if (file.isDirectory()) {
       ret.addAll(getBoardsfromDirectory(p, Match, file));
-    } else {
+    } else if (file.isFile()) {
       ret.addAll(getBoardsfromJar(p, Match, file));
     }
     return ret;
@@ -61,6 +61,7 @@ public class BoardList {
   private static Collection<String> getBoardsfromDirectory(Pattern p, String Match, File Dir) {
     ArrayList<String> ret = new ArrayList<String>();
     File[] fileList = Dir.listFiles();
+    if (fileList == null) return ret;
     for (File file : fileList) {
       if (file.isDirectory()) {
         ret.addAll(getBoardsfromDirectory(p, Match, file));

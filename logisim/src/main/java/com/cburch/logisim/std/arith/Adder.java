@@ -29,25 +29,22 @@
 package com.cburch.logisim.std.arith;
 
 import static com.cburch.logisim.std.Strings.S;
+import com.cburch.logisim.LogisimVersion;
 
 import com.cburch.logisim.data.Attribute;
 import com.cburch.logisim.data.AttributeSet;
 import com.cburch.logisim.data.BitWidth;
 import com.cburch.logisim.data.Bounds;
-import com.cburch.logisim.data.Direction;
-import com.cburch.logisim.data.Location;
 import com.cburch.logisim.data.Value;
 import com.cburch.logisim.fpga.designrulecheck.CorrectLabel;
 import com.cburch.logisim.gui.icons.ArithmeticIcon;
 import com.cburch.logisim.instance.InstanceFactory;
+import com.cburch.logisim.instance.Instance;
 import com.cburch.logisim.instance.InstancePainter;
 import com.cburch.logisim.instance.InstanceState;
 import com.cburch.logisim.instance.Port;
 import com.cburch.logisim.instance.StdAttr;
 import com.cburch.logisim.tools.key.BitWidthConfigurator;
-import com.cburch.logisim.util.GraphicsUtil;
-import java.awt.Color;
-import java.awt.Graphics;
 
 public class Adder extends InstanceFactory {
   static Value[] computeSum(BitWidth width, Value a, Value b, Value c_in) {
@@ -114,23 +111,60 @@ public class Adder extends InstanceFactory {
 
   public Adder() {
     super("Adder", S.getter("adderComponent"));
-    setAttributes(new Attribute[] {StdAttr.WIDTH}, new Object[] {BitWidth.create(8)});
+    setAttributes(new Attribute[] {StdAttr.WIDTH, ArithmeticSymbol.SPACIOUS},
+        new Object[] {BitWidth.create(8), Boolean.TRUE});
     setKeyConfigurator(new BitWidthConfigurator(StdAttr.WIDTH));
-    setOffsetBounds(Bounds.create(-40, -20, 40, 40));
     setIcon(new ArithmeticIcon("+"));
+    setPorts(createPorts(true));
+  }
 
+  private Port[] createPorts(boolean spacious) {
     Port[] ps = new Port[5];
-    ps[IN0] = new Port(-40, -10, Port.INPUT, StdAttr.WIDTH);
-    ps[IN1] = new Port(-40, 10, Port.INPUT, StdAttr.WIDTH);
+    int width = spacious ? 80 : 40;
+    int height = spacious ? 30 : 20;
+    int inputY = spacious ? 20 : 10;
+    ps[IN0] = new Port(-width, -inputY, Port.INPUT, StdAttr.WIDTH);
+    ps[IN1] = new Port(-width, inputY, Port.INPUT, StdAttr.WIDTH);
     ps[OUT] = new Port(0, 0, Port.OUTPUT, StdAttr.WIDTH);
-    ps[C_IN] = new Port(-20, -20, Port.INPUT, 1);
-    ps[C_OUT] = new Port(-20, 20, Port.OUTPUT, 1);
+    ps[C_IN] = new Port(-width / 2, -height, Port.INPUT, 1);
+    ps[C_OUT] = new Port(-width / 2, height, Port.OUTPUT, 1);
     ps[IN0].setToolTip(S.getter("adderInputTip"));
     ps[IN1].setToolTip(S.getter("adderInputTip"));
     ps[OUT].setToolTip(S.getter("adderOutputTip"));
     ps[C_IN].setToolTip(S.getter("adderCarryInTip"));
     ps[C_OUT].setToolTip(S.getter("adderCarryOutTip"));
-    setPorts(ps);
+    return ps;
+  }
+
+  @Override
+  public Object getDefaultAttributeValue(Attribute<?> attr, LogisimVersion ver) {
+    if (attr == ArithmeticSymbol.SPACIOUS) return Boolean.FALSE;
+    return super.getDefaultAttributeValue(attr, ver);
+  }
+
+  @Override
+  public Bounds getOffsetBounds(AttributeSet attrs) {
+    return attrs.getValue(ArithmeticSymbol.SPACIOUS) ? Bounds.create(-80, -30, 80, 60)
+        : Bounds.create(-40, -20, 40, 40);
+  }
+
+  @Override
+  protected void configureNewInstance(Instance instance) {
+    instance.addAttributeListener();
+    instance.setPorts(createPorts(instance.getAttributeValue(ArithmeticSymbol.SPACIOUS)));
+  }
+
+  @Override
+  protected void instanceAttributeChanged(Instance instance, Attribute<?> attr) {
+    if (attr == ArithmeticSymbol.SPACIOUS) {
+      instance.recomputeBounds();
+      instance.setPorts(createPorts(instance.getAttributeValue(ArithmeticSymbol.SPACIOUS)));
+    }
+  }
+
+  @Override
+  public void paintGhost(InstancePainter painter) {
+    painter.drawBounds();
   }
 
   @Override
@@ -149,24 +183,7 @@ public class Adder extends InstanceFactory {
 
   @Override
   public void paintInstance(InstancePainter painter) {
-    Graphics g = painter.getGraphics();
-    painter.drawBounds();
-
-    g.setColor(Color.GRAY);
-    painter.drawPort(IN0);
-    painter.drawPort(IN1);
-    painter.drawPort(OUT);
-    painter.drawPort(C_IN, "c in", Direction.NORTH);
-    painter.drawPort(C_OUT, "c out", Direction.SOUTH);
-
-    Location loc = painter.getLocation();
-    int x = loc.getX();
-    int y = loc.getY();
-    GraphicsUtil.switchToWidth(g, 2);
-    g.setColor(Color.BLACK);
-    g.drawLine(x - 15, y, x - 5, y);
-    g.drawLine(x - 10, y - 5, x - 10, y + 5);
-    GraphicsUtil.switchToWidth(g, 1);
+    ArithmeticSymbol.drawAdder(painter, false);
   }
 
   @Override

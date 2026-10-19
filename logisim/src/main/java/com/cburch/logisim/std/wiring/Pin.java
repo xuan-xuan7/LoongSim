@@ -607,13 +607,6 @@ public class Pin extends InstanceFactory {
     setInstancePoker(PinPoker.class);
   }
 
-  private static Direction PinLabelLoc(Direction PinDir) {
-    if (PinDir == Direction.EAST) return Direction.WEST;
-    else if (PinDir == Direction.WEST) return Direction.EAST;
-    else if (PinDir == Direction.NORTH) return Direction.SOUTH;
-    else return Direction.NORTH;
-  }
-
   //
   // methods for instances
   //
@@ -623,14 +616,16 @@ public class Pin extends InstanceFactory {
     instance.addAttributeListener();
     ((PrefMonitorBooleanConvert) AppPreferences.NEW_INPUT_OUTPUT_SHAPES).addConvertListener(attrs);
     configurePorts(instance);
-    instance.computeLabelTextField(
-        Instance.AVOID_LEFT, PinLabelLoc(attrs.getValue(StdAttr.FACING)));
+    instance.computeLabelTextField(Instance.AVOID_LEFT);
   }
 
   @Override
   public Object getDefaultAttributeValue(Attribute<?> attr, LogisimVersion ver) {
     if (attr.equals(ProbeAttributes.PROBEAPPEARANCE)) {
       return StdAttr.APPEAR_CLASSIC;
+    } else if (attr == StdAttr.LABEL_LOC) {
+      // Old files did not store a label location; derive it from their facing.
+      return null;
     } else {
       return super.getDefaultAttributeValue(attr, ver);
     }
@@ -708,8 +703,9 @@ public class Pin extends InstanceFactory {
         || attr == RadixOption.ATTRIBUTE
         || attr == ProbeAttributes.PROBEAPPEARANCE) {
       instance.recomputeBounds();
-      PinAttributes attrs = (PinAttributes) instance.getAttributeSet();
-      instance.computeLabelTextField(Instance.AVOID_LEFT, PinLabelLoc(attrs.facing));
+      instance.computeLabelTextField(Instance.AVOID_LEFT);
+    } else if (attr == StdAttr.LABEL_LOC) {
+      instance.computeLabelTextField(Instance.AVOID_LEFT);
     } else if (attr == Pin.ATTR_TRISTATE || attr == Pin.ATTR_PULL) {
       instance.fireInvalidated();
     }
@@ -730,7 +726,7 @@ public class Pin extends InstanceFactory {
     g.setFont(Pin.DEFAULT_FONT);
     RadixOption radix = painter.getAttributeValue(RadixOption.ATTRIBUTE);
     Direction dir = painter.getAttributeSet().getValue(StdAttr.FACING);
-    int westTranslate = (isOutput) ? width : width + 10;
+    int westTranslate = width + 10;
     if (dir == Direction.WEST) {
       g2.rotate(-Math.PI);
       g2.translate(westTranslate, 0);
@@ -744,7 +740,7 @@ public class Pin extends InstanceFactory {
           0);
     } else {
       int labelYPos = height / 2 - 2;
-      int LabelValueXOffset = (isOutput) ? -15 : -20;
+      int LabelValueXOffset = -20;
       g.setColor(Color.BLUE);
       g2.scale(0.7, 0.7);
       g2.drawString(
@@ -765,7 +761,7 @@ public class Pin extends InstanceFactory {
           }
           return;
         }
-        int x0 = (isOutput) ? -20 : -25;
+        int x0 = -25;
         int cx = x0;
         int cy = height / 2 - 12;
         int cur = 0;
@@ -788,7 +784,7 @@ public class Pin extends InstanceFactory {
         }
       } else {
         String text = radix.toString(value);
-        int cx = (isOutput) ? -15 : -20;
+        int cx = -20;
         for (int k = text.length() - 1; k >= 0; k--) {
           GraphicsUtil.drawText(
               g, text.substring(k, k + 1), cx, -2, GraphicsUtil.H_RIGHT, GraphicsUtil.H_CENTER);
@@ -917,22 +913,23 @@ public class Pin extends InstanceFactory {
       g2.rotate(rotation);
       if (isBus) {
         GraphicsUtil.switchToWidth(g, Wire.WIDTH_BUS);
-        g.drawLine(-3, 0, -Wire.WIDTH_BUS / 2, 0);
+        g.drawLine(Wire.WIDTH_BUS / 2 - 5, 0, 0, 0);
         GraphicsUtil.switchToWidth(g, 2);
       } else {
         Color col = g.getColor();
         if (painter.getShowState())
           g.setColor(LineColor);
         GraphicsUtil.switchToWidth(g, Wire.WIDTH);
-        g.drawLine(-3, 0, 0, 0);
+        g.drawLine(-5, 0, 0, 0);
         GraphicsUtil.switchToWidth(g, 2);
         g.setColor(col);
       }
-      g.drawLine(10 - rwidth, -rheight / 2, -rwidth, 0);
-      g.drawLine(10 - rwidth, rheight / 2, -rwidth, 0);
-      g.drawLine(-5, -rheight / 2, -5, rheight / 2);
-      g.drawLine(-5, -rheight / 2, 10 - rwidth, -rheight / 2);
-      g.drawLine(-5, rheight / 2, 10 - rwidth, rheight / 2);
+      // Match the toolbox arrow: the tip faces the connector, without changing pin type.
+      g.drawLine(-15, -rheight / 2, -5, 0);
+      g.drawLine(-15, rheight / 2, -5, 0);
+      g.drawLine(-rwidth, -rheight / 2, -rwidth, rheight / 2);
+      g.drawLine(-rwidth, -rheight / 2, -15, -rheight / 2);
+      g.drawLine(-rwidth, rheight / 2, -15, rheight / 2);
       drawNewStyleValue(painter, rwidth, rheight, true, isGhost);
       g2.rotate(-rotation);
       g2.translate(-xpos, -ypos);
@@ -998,20 +995,23 @@ public class Pin extends InstanceFactory {
     BitWidth w = attrs.getValue(StdAttr.WIDTH);
     int pinSize = iconSize>>2;
     if (attrs.getValue(ProbeAttributes.PROBEAPPEARANCE) == ProbeAttributes.APPEAR_EVOLUTION_NEW) {
+      Graphics2D shape = (Graphics2D) g.create();
+      double rotation = 0;
+      if (dir == Direction.WEST) rotation = Math.PI;
+      else if (dir == Direction.NORTH) rotation = -Math.PI / 2;
+      else if (dir == Direction.SOUTH) rotation = Math.PI / 2;
+      shape.rotate(rotation, iconSize / 2.0, iconSize / 2.0);
       int arrowHeight = (10*iconSize)>>4;
       int yoff = (3*iconSize)>>4;
-      int xoff = output?pinSize : 0;
       int[] yPoints = new int[] {yoff, yoff, yoff+(arrowHeight>>1), yoff+arrowHeight, yoff+arrowHeight};
-      int[] xPoints = new int[] {xoff, xoff+iconSize-(pinSize<<1), xoff+iconSize-pinSize,
-    		  xoff+iconSize-(pinSize<<1), xoff};
-      g.setColor(Color.black);
-      g.drawPolygon(xPoints, yPoints, xPoints.length);
-      g.setColor(Value.TRUE.getColor());
-      GraphicsUtil.switchToWidth(g, AppPreferences.getScaled(2));
-      if (output)
-        g.drawLine(0, yoff+(arrowHeight>>1), pinSize , yoff+(arrowHeight>>1));
-      else
-    	g.drawLine(iconSize-pinSize, yoff+(arrowHeight>>1), iconSize , yoff+(arrowHeight>>1));
+      int[] xPoints = new int[] {0, iconSize-(pinSize<<1), iconSize-pinSize,
+          iconSize-(pinSize<<1), 0};
+      shape.setColor(Color.black);
+      shape.drawPolygon(xPoints, yPoints, xPoints.length);
+      shape.setColor(Value.TRUE.getColor());
+      GraphicsUtil.switchToWidth(shape, AppPreferences.getScaled(2));
+      shape.drawLine(iconSize-pinSize, yoff+(arrowHeight>>1), iconSize, yoff+(arrowHeight>>1));
+      shape.dispose();
     } else {
       int iconOffset = AppPreferences.getScaled(4);
       int boxWidth = iconSize-(iconOffset<<1);
@@ -1043,11 +1043,16 @@ public class Pin extends InstanceFactory {
       TextLayout bw = new TextLayout(Integer.toString(w.getWidth()), ICON_WIDTH_FONT, g.getFontRenderContext());
       float xpos = (float)AppPreferences.getIconSize()/2-(float)bw.getBounds().getCenterX();
       float ypos = (float)AppPreferences.getIconSize()/2-(float)bw.getBounds().getCenterY();
-      if (attrs.getValue(ProbeAttributes.PROBEAPPEARANCE) == ProbeAttributes.APPEAR_EVOLUTION_NEW)
-        if (output)
-          xpos = pinSize+(iconSize-pinSize)/2-(float)bw.getBounds().getCenterX();
-        else
-          xpos = (iconSize-pinSize)/2-(float)bw.getBounds().getCenterX();
+      if (attrs.getValue(ProbeAttributes.PROBEAPPEARANCE) == ProbeAttributes.APPEAR_EVOLUTION_NEW) {
+        float centerX = (float) iconSize / 2;
+        float centerY = (float) iconSize / 2;
+        if (dir == Direction.WEST) centerX += (float) pinSize / 2;
+        else if (dir == Direction.NORTH) centerY += (float) pinSize / 2;
+        else if (dir == Direction.SOUTH) centerY -= (float) pinSize / 2;
+        else centerX -= (float) pinSize / 2;
+        xpos = centerX-(float)bw.getBounds().getCenterX();
+        ypos = centerY-(float)bw.getBounds().getCenterY();
+      }
       bw.draw(g, xpos, ypos);
       g.setColor(Color.BLACK);
     }

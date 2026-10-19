@@ -36,8 +36,8 @@ import com.cburch.logisim.data.AttributeSet;
 import com.cburch.logisim.data.Attributes;
 import com.cburch.logisim.data.BitWidth;
 import com.cburch.logisim.data.Bounds;
-import com.cburch.logisim.data.Direction;
 import com.cburch.logisim.data.Value;
+import com.cburch.logisim.LogisimVersion;
 import com.cburch.logisim.instance.Instance;
 import com.cburch.logisim.instance.InstanceFactory;
 import com.cburch.logisim.instance.InstancePainter;
@@ -47,15 +47,28 @@ import com.cburch.logisim.instance.StdAttr;
 import com.cburch.logisim.tools.key.BitWidthConfigurator;
 import com.cburch.logisim.tools.key.JoinedConfigurator;
 import com.cburch.logisim.util.GraphicsUtil;
-import java.awt.FontMetrics;
 import java.awt.Graphics;
+import java.awt.Font;
+import java.awt.Window;
 
 public class BitExtender extends InstanceFactory {
+  private static final Attribute<Integer> ATTR_BODY_WIDTH = new Attribute<Integer>(
+      "bodyWidth", S.getter("extenderComponent")) {
+    @Override
+    public Integer parse(String value) {
+      int width = Integer.parseInt(value);
+      if (width != 40 && width != 80) throw new NumberFormatException("Invalid extender width");
+      return width;
+    }
+
+    @Override
+    public boolean isHidden() { return true; }
+  };
   private static final Attribute<BitWidth> ATTR_IN_WIDTH =
       Attributes.forBitWidth("in_width", S.getter("extenderInAttr"));
   private static final Attribute<BitWidth> ATTR_OUT_WIDTH =
       Attributes.forBitWidth("out_width", S.getter("extenderOutAttr"));
-  static final Attribute<AttributeOption> ATTR_TYPE =
+  private static final Attribute<AttributeOption> ALL_TYPES =
       Attributes.forOption(
           "type",
           S.getter("extenderTypeAttr"),
@@ -66,25 +79,59 @@ public class BitExtender extends InstanceFactory {
             new AttributeOption("input", "input", S.getter("extenderInputType")),
           });
 
+  private static final Attribute<AttributeOption> VISIBLE_TYPES = Attributes.forOption(
+      "type", S.getter("extenderTypeAttr"), new AttributeOption[] {
+        ALL_TYPES.parse("zero"), ALL_TYPES.parse("one"), ALL_TYPES.parse("sign")
+      });
+
+  // Keep parsing the fourth type in existing files, while offering only the teaching choices.
+  static final Attribute<AttributeOption> ATTR_TYPE = new Attribute<AttributeOption>(
+      "type", S.getter("extenderTypeAttr")) {
+    @Override
+    public AttributeOption parse(String value) { return ALL_TYPES.parse(value); }
+
+    @Override
+    public String toDisplayString(AttributeOption value) { return ALL_TYPES.toDisplayString(value); }
+
+    @Override
+    public java.awt.Component getCellEditor(Window source, AttributeOption value) {
+      return VISIBLE_TYPES.getCellEditor(source,
+          value != null && "input".equals(value.getValue()) ? null : value);
+    }
+  };
+
   public static final BitExtender FACTORY = new BitExtender();
 
   public BitExtender() {
     super("Bit Extender", S.getter("extenderComponent"));
     setIconName("extender.gif");
     setAttributes(
-        new Attribute[] {ATTR_IN_WIDTH, ATTR_OUT_WIDTH, ATTR_TYPE},
-        new Object[] {BitWidth.create(8), BitWidth.create(16), ATTR_TYPE.parse("sign")});
+        new Attribute[] {ATTR_IN_WIDTH, ATTR_OUT_WIDTH, ATTR_TYPE, ATTR_BODY_WIDTH},
+        new Object[] {BitWidth.create(8), BitWidth.create(16), ATTR_TYPE.parse("sign"), 80});
     setFacingAttribute(StdAttr.FACING);
     setKeyConfigurator(
         JoinedConfigurator.create(
             new BitWidthConfigurator(ATTR_OUT_WIDTH),
             new BitWidthConfigurator(ATTR_IN_WIDTH, 1, Value.MAX_WIDTH, 0)));
-    setOffsetBounds(Bounds.create(-40, -20, 40, 40));
+    setOffsetBounds(Bounds.create(-80, -20, 80, 40));
   }
 
   //
   // methods for instances
   //
+  @Override
+  public Object getDefaultAttributeValue(Attribute<?> attr, LogisimVersion version) {
+    // Old files have wires attached at x = -40. Save the wider layout explicitly for new instances.
+    if (attr == ATTR_BODY_WIDTH) return 40;
+    return super.getDefaultAttributeValue(attr, version);
+  }
+
+  @Override
+  public Bounds getOffsetBounds(AttributeSet attrs) {
+    int width = attrs.getValue(ATTR_BODY_WIDTH);
+    return Bounds.create(-width, -20, width, 40);
+  }
+
   @Override
   protected void configureNewInstance(Instance instance) {
     configurePorts(instance);
@@ -93,7 +140,7 @@ public class BitExtender extends InstanceFactory {
 
   private void configurePorts(Instance instance) {
     Port p0 = new Port(0, 0, Port.OUTPUT, ATTR_OUT_WIDTH);
-    Port p1 = new Port(-40, 0, Port.INPUT, ATTR_IN_WIDTH);
+    Port p1 = new Port(-instance.getAttributeValue(ATTR_BODY_WIDTH), 0, Port.INPUT, ATTR_IN_WIDTH);
     String type = getType(instance.getAttributeSet());
     if (type.equals("input")) {
       instance.setPorts(new Port[] {p0, p1, new Port(-20, -20, Port.INPUT, 1)});
@@ -115,7 +162,11 @@ public class BitExtender extends InstanceFactory {
 
   @Override
   protected void instanceAttributeChanged(Instance instance, Attribute<?> attr) {
-    if (attr == ATTR_TYPE) {
+    if (attr == ATTR_BODY_WIDTH) {
+      instance.recomputeBounds();
+      configurePorts(instance);
+      instance.fireInvalidated();
+    } else if (attr == ATTR_TYPE) {
       configurePorts(instance);
       instance.fireInvalidated();
     } else {
@@ -129,9 +180,6 @@ public class BitExtender extends InstanceFactory {
   @Override
   public void paintInstance(InstancePainter painter) {
     Graphics g = painter.getGraphics();
-    FontMetrics fm = g.getFontMetrics();
-    int asc = fm.getAscent();
-
     painter.drawBounds();
 
     String s0;
@@ -144,16 +192,34 @@ public class BitExtender extends InstanceFactory {
     String s1 = S.get("extenderMainLabel");
     Bounds bds = painter.getBounds();
     int x = bds.getX() + bds.getWidth() / 2;
-    int y0 = bds.getY() + (bds.getHeight() / 2 + asc) / 2;
-    int y1 = bds.getY() + (3 * bds.getHeight() / 2 + asc) / 2;
-    GraphicsUtil.drawText(g, s0, x, y0, GraphicsUtil.H_CENTER, GraphicsUtil.V_BASELINE);
-    GraphicsUtil.drawText(g, s1, x, y1, GraphicsUtil.H_CENTER, GraphicsUtil.V_BASELINE);
+    int y = painter.getLocation().getY();
+    Font originalFont = g.getFont();
+    g.setFont(originalFont.deriveFont(12f));
+    GraphicsUtil.drawText(g, s0, x, y - 6,
+        GraphicsUtil.H_CENTER, GraphicsUtil.V_CENTER_OVERALL);
+    GraphicsUtil.drawText(g, s1, x, y + 6,
+        GraphicsUtil.H_CENTER, GraphicsUtil.V_CENTER_OVERALL);
 
     BitWidth w0 = painter.getAttributeValue(ATTR_OUT_WIDTH);
     BitWidth w1 = painter.getAttributeValue(ATTR_IN_WIDTH);
-    painter.drawPort(0, "" + w0.getWidth(), Direction.WEST);
-    painter.drawPort(1, "" + w1.getWidth(), Direction.EAST);
-    if (type.equals("input")) painter.drawPort(2);
+    g.setFont(originalFont.deriveFont(11f));
+    if (bds.getWidth() == 80) {
+      GraphicsUtil.drawText(g, "" + w1.getWidth(), bds.getX() + 10, y,
+          GraphicsUtil.H_CENTER, GraphicsUtil.V_CENTER_OVERALL);
+      GraphicsUtil.drawText(g, "" + w0.getWidth(), bds.getX() + bds.getWidth() - 10, y,
+          GraphicsUtil.H_CENTER, GraphicsUtil.V_CENTER_OVERALL);
+    } else {
+      GraphicsUtil.drawText(g, "" + w1.getWidth(), bds.getX() - 6, y,
+          GraphicsUtil.H_RIGHT, GraphicsUtil.V_CENTER);
+      GraphicsUtil.drawText(g, "" + w0.getWidth(), bds.getX() + bds.getWidth() + 6, y,
+          GraphicsUtil.H_LEFT, GraphicsUtil.V_CENTER);
+    }
+    g.setFont(originalFont);
+    painter.drawPort(0);
+    painter.drawPort(1);
+    if (type.equals("input")) {
+      painter.drawPort(2);
+    }
   }
 
   @Override

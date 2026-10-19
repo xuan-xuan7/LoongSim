@@ -35,14 +35,12 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.nio.charset.StandardCharsets;
 
 public class Template {
 
   public static Template create(InputStream in) {
-    InputStreamReader reader = new InputStreamReader(in);
+    InputStreamReader reader = new InputStreamReader(in, StandardCharsets.UTF_8);
     char[] buf = new char[4096];
     StringBuilder dest = new StringBuilder();
     while (true) {
@@ -67,8 +65,6 @@ public class Template {
     return new Template(buf.toString());
   }
 
-  static final Logger logger = LoggerFactory.getLogger(Template.class);
-
   private String contents;
 
   private Template(String contents) {
@@ -76,11 +72,6 @@ public class Template {
   }
 
   public InputStream createStream() {
-    try {
-      return new ByteArrayInputStream(contents.getBytes("UTF-8"));
-    } catch (UnsupportedEncodingException e) {
-      logger.warn("UTF-8 is not supported");
-      return new ByteArrayInputStream(contents.getBytes());
-    }
+    return new ByteArrayInputStream(contents.getBytes(StandardCharsets.UTF_8));
   }
 }

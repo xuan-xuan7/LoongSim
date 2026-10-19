@@ -3,7 +3,7 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-JAR_FILE="$SCRIPT_DIR/build/libs/LoongSim-1.0.0-java11-all.jar"
+JAR_FILE="$SCRIPT_DIR/build/libs/LoongSim-1.0.1-java11-all.jar"
 
 if ! command -v java >/dev/null 2>&1; then
   echo "错误：未找到 Java，请先安装 Java 11 或更高版本。"

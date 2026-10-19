@@ -51,8 +51,22 @@ import com.cburch.logisim.tools.key.JoinedConfigurator;
 import com.cburch.logisim.util.GraphicsUtil;
 import java.awt.Color;
 import java.awt.Graphics;
+import java.awt.Font;
 
 public class Multiplexer extends InstanceFactory {
+  private static final Attribute<Integer> ATTR_BODY_PADDING = new Attribute<Integer>(
+      "bodyPadding", S.getter("multiplexerComponent")) {
+    @Override
+    public Integer parse(String value) {
+      int padding = Integer.parseInt(value);
+      if (padding != 0 && padding != 20) throw new NumberFormatException("Invalid multiplexer padding");
+      return padding;
+    }
+
+    @Override
+    public boolean isHidden() { return true; }
+  };
+
   static void drawSelectCircle(Graphics g, Bounds bds, Location loc) {
     if (Math.min(bds.getHeight(), bds.getWidth()) <= 20) return; // no dot for narrow mode
     int locDelta = Math.max(bds.getHeight(), bds.getWidth()) <= 50 ? 8 : 6;
@@ -88,19 +102,25 @@ public class Multiplexer extends InstanceFactory {
           Plexers.ATTR_SELECT,
           StdAttr.WIDTH,
           Plexers.ATTR_DISABLED,
-          Plexers.ATTR_ENABLE
+          Plexers.ATTR_ENABLE,
+          ATTR_BODY_PADDING
         },
         new Object[] {
           Direction.EAST, Plexers.SIZE_WIDE, Plexers.SELECT_BOTTOM_LEFT,
           Plexers.DEFAULT_SELECT, BitWidth.ONE, Plexers.DISABLED_ZERO,
-          Plexers.DEFAULT_ENABLE
+          Plexers.DEFAULT_ENABLE, 20
         });
     setKeyConfigurator(
         JoinedConfigurator.create(
-            new BitWidthConfigurator(Plexers.ATTR_SELECT, 1, 5, 0),
+            new BitWidthConfigurator(Plexers.ATTR_SELECT, 1, 7, 0),
             new BitWidthConfigurator(StdAttr.WIDTH)));
     setIcon(new PlexerIcon(false,false));
     setFacingAttribute(StdAttr.FACING);
+  }
+
+  @Override
+  public AttributeSet createAttributeSet() {
+    return new TeachingPlexerAttributes(super.createAttributeSet());
   }
 
   @Override
@@ -111,6 +131,8 @@ public class Multiplexer extends InstanceFactory {
 
   @Override
   public Object getDefaultAttributeValue(Attribute<?> attr, LogisimVersion ver) {
+    // Preserve the input and control port locations in files saved before the wider layout.
+    if (attr == ATTR_BODY_PADDING) return 0;
     if (attr == Plexers.ATTR_ENABLE) {
       int newer = ver.compareTo(LogisimVersion.get(2, 6, 4));
       return Boolean.valueOf(newer >= 0);
@@ -133,14 +155,15 @@ public class Multiplexer extends InstanceFactory {
   public Bounds getOffsetBounds(AttributeSet attrs) {
     Object size = attrs.getValue(Plexers.ATTR_SIZE);
     boolean wide = size == Plexers.SIZE_WIDE;
+    int padding = wide ? attrs.getValue(ATTR_BODY_PADDING) : 0;
     Direction dir = attrs.getValue(StdAttr.FACING);
     BitWidth select = attrs.getValue(Plexers.ATTR_SELECT);
     int inputs = 1 << select.getWidth();
     if (inputs == 2) {
-      int w = (wide ? 30 : 20);
+      int w = (wide ? 30 : 20) + padding;
       return Bounds.create(-w, -20, w, 40).rotate(Direction.EAST, dir, 0, 0);
     } else {
-      int w = (wide ? 40 : 20);
+      int w = (wide ? 40 : 20) + padding;
       int lengthAdjust = (wide ? 0 : -5);
       int offs = -(inputs / 2) * 10 - 10;
       int length = inputs * 10 + 20 + lengthAdjust;
@@ -166,7 +189,8 @@ public class Multiplexer extends InstanceFactory {
     if (attr == StdAttr.FACING
         || attr == Plexers.ATTR_SELECT_LOC
         || attr == Plexers.ATTR_SELECT
-        || attr == Plexers.ATTR_SIZE) {
+        || attr == Plexers.ATTR_SIZE
+        || attr == ATTR_BODY_PADDING) {
       instance.recomputeBounds();
       updatePorts(instance);
     } else if (attr == StdAttr.WIDTH || attr == Plexers.ATTR_ENABLE) {
@@ -237,33 +261,6 @@ public class Multiplexer extends InstanceFactory {
     }
     GraphicsUtil.switchToWidth(g, 1);
 
-    // draw a circle indicating where the select input is located
-    Multiplexer.drawSelectCircle(g, bds, painter.getInstance().getPortLocation(inputs));
-
-    // draw a 0 indicating where the numbering starts for inputs
-    int x0;
-    int y0;
-    int halign;
-    if (facing == Direction.WEST) {
-      x0 = bds.getX() + bds.getWidth() - 3;
-      y0 = bds.getY() + 15;
-      halign = GraphicsUtil.H_RIGHT;
-    } else if (facing == Direction.NORTH) {
-      x0 = bds.getX() + 10;
-      y0 = bds.getY() + bds.getHeight() - 2;
-      halign = GraphicsUtil.H_CENTER;
-    } else if (facing == Direction.SOUTH) {
-      x0 = bds.getX() + 10;
-      y0 = bds.getY() + 12;
-      halign = GraphicsUtil.H_CENTER;
-    } else {
-      x0 = bds.getX() + 3;
-      y0 = bds.getY() + 15;
-      halign = GraphicsUtil.H_LEFT;
-    }
-    g.setColor(Color.GRAY);
-    GraphicsUtil.drawText(g, "0", x0, y0, halign, GraphicsUtil.V_BASELINE);
-
     // draw the trapezoid, "MUX" string, the individual ports
     g.setColor(Color.BLACK);
     int lean;
@@ -274,9 +271,38 @@ public class Multiplexer extends InstanceFactory {
       lean = (size == Plexers.SIZE_NARROW ? 10 : 20);
       Plexers.drawTrapezoid(g, bds, facing, lean);
     }
-    if (size == Plexers.SIZE_WIDE)
-      GraphicsUtil.drawCenteredText(
-          g, "MUX", bds.getX() + bds.getWidth() / 2, bds.getY() + bds.getHeight() / 2);
+    Font originalFont = g.getFont();
+    g.setFont(originalFont.deriveFont(inputs == 2 ? 10f : 9f));
+    for (int i = 0; i < inputs; i++) {
+      Location port = painter.getInstance().getPortLocation(i);
+      if (facing == Direction.WEST) {
+        GraphicsUtil.drawText(g, "" + i, port.getX() - 5, port.getY(),
+            GraphicsUtil.H_RIGHT, GraphicsUtil.V_CENTER_OVERALL);
+      } else if (facing == Direction.NORTH) {
+        GraphicsUtil.drawText(g, "" + i, port.getX(), port.getY() - 5,
+            GraphicsUtil.H_CENTER, GraphicsUtil.V_BOTTOM);
+      } else if (facing == Direction.SOUTH) {
+        GraphicsUtil.drawText(g, "" + i, port.getX(), port.getY() + 5,
+            GraphicsUtil.H_CENTER, GraphicsUtil.V_TOP);
+      } else {
+        GraphicsUtil.drawText(g, "" + i, port.getX() + 5, port.getY(),
+            GraphicsUtil.H_LEFT, GraphicsUtil.V_CENTER_OVERALL);
+      }
+    }
+    if (wide) {
+      int depth = vertical ? bds.getWidth() : bds.getHeight();
+      int offset = depth <= 40 ? 3 : 5;
+      int x = bds.getX() + bds.getWidth() / 2;
+      int y = bds.getY() + bds.getHeight() / 2;
+      if (facing == Direction.EAST) x += offset;
+      else if (facing == Direction.WEST) x -= offset;
+      else if (facing == Direction.NORTH) y -= offset;
+      else y += offset;
+      g.setFont(originalFont.deriveFont(!vertical ? 10f : depth <= 40 ? 9f : 12f));
+      GraphicsUtil.drawText(g, "MUX", x, y,
+          GraphicsUtil.H_CENTER, GraphicsUtil.V_CENTER_OVERALL);
+    }
+    g.setFont(originalFont);
     painter.drawPorts();
   }
 
@@ -310,6 +336,7 @@ public class Multiplexer extends InstanceFactory {
   private void updatePorts(Instance instance) {
     Object size = instance.getAttributeValue(Plexers.ATTR_SIZE);
     boolean wide = size == Plexers.SIZE_WIDE;
+    int padding = wide ? instance.getAttributeValue(ATTR_BODY_PADDING) : 0;
     Direction dir = instance.getAttributeValue(StdAttr.FACING);
     boolean vertical = dir != Direction.NORTH && dir != Direction.SOUTH;
     Object selectLoc = instance.getAttributeValue(Plexers.ATTR_SELECT_LOC);
@@ -324,8 +351,8 @@ public class Multiplexer extends InstanceFactory {
     Location sel;
     int w, s;
     if (inputs == 2) {
-      w = (size == Plexers.SIZE_NARROW ? 20 : 30);
-      s = (size == Plexers.SIZE_NARROW ? 10 : 20);
+      w = (size == Plexers.SIZE_NARROW ? 20 : 30) + padding;
+      s = (size == Plexers.SIZE_NARROW ? 10 : 20) + padding;
       Location end0;
       Location end1;
       if (dir == Direction.WEST) {
@@ -348,8 +375,8 @@ public class Multiplexer extends InstanceFactory {
       ps[0] = new Port(end0.getX(), end0.getY(), Port.INPUT, data.getWidth());
       ps[1] = new Port(end1.getX(), end1.getY(), Port.INPUT, data.getWidth());
     } else {
-      w = (size == Plexers.SIZE_NARROW ? 20 : 40);
-      s = (size == Plexers.SIZE_NARROW ? 10 : 20);
+      w = (size == Plexers.SIZE_NARROW ? 20 : 40) + padding;
+      s = w / 2;
       int dx = -(inputs / 2) * 10;
       int ddx = 10;
       int dy = -(inputs / 2) * 10;

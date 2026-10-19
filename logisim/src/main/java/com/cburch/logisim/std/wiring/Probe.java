@@ -295,9 +295,7 @@ public class Probe extends InstanceFactory {
 
   @Override
   public AttributeSet createAttributeSet() {
-    AttributeSet attrs = new ProbeAttributes();
-    attrs.setValue(ProbeAttributes.PROBEAPPEARANCE, ProbeAttributes.GetDefaultProbeAppearance());
-    return attrs;
+    return new ProbeAttributes();
   }
 
   @Override

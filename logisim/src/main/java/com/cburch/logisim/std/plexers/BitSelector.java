@@ -31,6 +31,7 @@ package com.cburch.logisim.std.plexers;
 import static com.cburch.logisim.std.Strings.S;
 
 import com.cburch.logisim.data.Attribute;
+import com.cburch.logisim.LogisimVersion;
 import com.cburch.logisim.data.AttributeSet;
 import com.cburch.logisim.data.Attributes;
 import com.cburch.logisim.data.BitWidth;
@@ -51,6 +52,7 @@ import com.cburch.logisim.tools.key.JoinedConfigurator;
 import com.cburch.logisim.util.GraphicsUtil;
 import java.awt.Color;
 import java.awt.Graphics;
+import java.awt.Font;
 
 public class BitSelector extends InstanceFactory {
   public static final Attribute<BitWidth> GROUP_ATTR =
@@ -59,8 +61,8 @@ public class BitSelector extends InstanceFactory {
   public BitSelector() {
     super("BitSelector", S.getter("bitSelectorComponent"));
     setAttributes(
-        new Attribute[] {StdAttr.FACING, StdAttr.WIDTH, GROUP_ATTR},
-        new Object[] {Direction.EAST, BitWidth.create(8), BitWidth.ONE});
+        new Attribute[] {StdAttr.FACING, StdAttr.WIDTH, GROUP_ATTR, PlexerDrawing.BODY_PADDING},
+        new Object[] {Direction.EAST, BitWidth.create(8), BitWidth.ONE, 20});
     setKeyConfigurator(
         JoinedConfigurator.create(
             new BitWidthConfigurator(GROUP_ATTR, 1, Value.MAX_WIDTH, 0),
@@ -85,9 +87,16 @@ public class BitSelector extends InstanceFactory {
   }
 
   @Override
+  public Object getDefaultAttributeValue(Attribute<?> attr, LogisimVersion ver) {
+    if (attr == PlexerDrawing.BODY_PADDING) return 0;
+    return super.getDefaultAttributeValue(attr, ver);
+  }
+
+  @Override
   public Bounds getOffsetBounds(AttributeSet attrs) {
     Direction facing = attrs.getValue(StdAttr.FACING);
-    Bounds base = Bounds.create(-30, -15, 30, 30);
+    int width = 30 + attrs.getValue(PlexerDrawing.BODY_PADDING);
+    Bounds base = Bounds.create(-width, -15, width, 30);
     return base.rotate(Direction.EAST, facing, 0, 0);
   }
 
@@ -99,7 +108,7 @@ public class BitSelector extends InstanceFactory {
 
   @Override
   protected void instanceAttributeChanged(Instance instance, Attribute<?> attr) {
-    if (attr == StdAttr.FACING) {
+    if (attr == StdAttr.FACING || attr == PlexerDrawing.BODY_PADDING) {
       instance.recomputeBounds();
       updatePorts(instance);
     } else if (attr == StdAttr.WIDTH || attr == GROUP_ATTR) {
@@ -121,8 +130,15 @@ public class BitSelector extends InstanceFactory {
     Plexers.drawTrapezoid(g, painter.getBounds(), facing, 9);
     Bounds bds = painter.getBounds();
     g.setColor(Color.BLACK);
-    GraphicsUtil.drawCenteredText(
-        g, "Sel", bds.getX() + bds.getWidth() / 2, bds.getY() + bds.getHeight() / 2);
+    Font originalFont = g.getFont();
+    g.setFont(originalFont.deriveFont(facing == Direction.EAST || facing == Direction.WEST ? 12f : 10f));
+    int labelY = bds.getCenterY();
+    int offset = painter.getAttributeValue(PlexerDrawing.BODY_PADDING) == 0 ? 4 : 7;
+    if (facing == Direction.NORTH) labelY += offset;
+    else if (facing == Direction.SOUTH) labelY -= offset;
+    GraphicsUtil.drawText(g, "SEL", bds.getCenterX(), labelY,
+        GraphicsUtil.H_CENTER, GraphicsUtil.V_CENTER_OVERALL);
+    g.setFont(originalFont);
     painter.drawPorts();
   }
 
@@ -171,18 +187,21 @@ public class BitSelector extends InstanceFactory {
 
     Location inPt;
     Location selPt;
+    int padding = instance.getAttributeValue(PlexerDrawing.BODY_PADDING);
+    int width = 30 + padding;
+    int selector = 10 + padding / 2;
     if (facing == Direction.WEST) {
-      inPt = Location.create(30, 0);
-      selPt = Location.create(10, 10);
+      inPt = Location.create(width, 0);
+      selPt = Location.create(selector, 10);
     } else if (facing == Direction.NORTH) {
-      inPt = Location.create(0, 30);
-      selPt = Location.create(-10, 10);
+      inPt = Location.create(0, width);
+      selPt = Location.create(-10, selector);
     } else if (facing == Direction.SOUTH) {
-      inPt = Location.create(0, -30);
-      selPt = Location.create(-10, -10);
+      inPt = Location.create(0, -width);
+      selPt = Location.create(-10, -selector);
     } else {
-      inPt = Location.create(-30, 0);
-      selPt = Location.create(-10, 10);
+      inPt = Location.create(-width, 0);
+      selPt = Location.create(-selector, 10);
     }
 
     Port[] ps = new Port[3];

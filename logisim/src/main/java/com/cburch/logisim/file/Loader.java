@@ -45,6 +45,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Stack;
 import javax.swing.JFileChooser;
@@ -92,7 +93,7 @@ public class Loader implements LibraryLoader {
   private static class LogisimFileFilter extends FileFilter {
     @Override
     public boolean accept(File f) {
-      return f.isDirectory() || f.getName().endsWith(LOGISIM_EXTENSION);
+      return f.isDirectory() || f.getName().toLowerCase(Locale.ROOT).endsWith(LOGISIM_EXTENSION);
     }
 
     @Override
@@ -116,7 +117,7 @@ public class Loader implements LibraryLoader {
   private static File determineBackupName(File base) {
     File dir = base.getParentFile();
     String name = base.getName();
-    if (name.endsWith(LOGISIM_EXTENSION)) {
+    if (name.toLowerCase(Locale.ROOT).endsWith(LOGISIM_EXTENSION)) {
       name = name.substring(0, name.length() - LOGISIM_EXTENSION.length());
     }
     for (int i = 1; i <= 20; i++) {
@@ -464,7 +465,7 @@ public class Loader implements LibraryLoader {
 
   private String toProjectName(File file) {
     String ret = file.getName();
-    if (ret.endsWith(LOGISIM_EXTENSION)) {
+    if (ret.toLowerCase(Locale.ROOT).endsWith(LOGISIM_EXTENSION)) {
       return ret.substring(0, ret.length() - LOGISIM_EXTENSION.length());
     } else {
       return ret;

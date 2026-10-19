@@ -31,12 +31,13 @@ package com.cburch.logisim.gui.chronogram.chronodata;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 public class ChronoDataWriter {
   /** Export all chronogram data into a specified file */
   public static void export(String filePath, TimelineParam timeLineParam, ChronoData chronoData) {
     try {
-      BufferedWriter writer = new BufferedWriter(new FileWriter(filePath));
+      BufferedWriter writer = new BufferedWriter(new FileWriter(filePath, StandardCharsets.UTF_8));
 
       // header
       for (String name : chronoData.getSignalOrder()) {

@@ -154,7 +154,7 @@ abstract class AbstractFlipFlop extends InstanceFactory {
     setAttributes(
         new Attribute[] {triggerAttribute, StdAttr.LABEL, StdAttr.LABEL_FONT, StdAttr.APPEARANCE},
         new Object[] {
-          StdAttr.TRIG_RISING, "", StdAttr.DEFAULT_LABEL_FONT, AppPreferences.getDefaultAppearance()
+          StdAttr.TRIG_RISING, "", StdAttr.DEFAULT_LABEL_FONT, StdAttr.APPEAR_EVOLUTION
         });
     setInstancePoker(Poker.class);
     setInstanceLogger(Logger.class);
@@ -168,11 +168,16 @@ abstract class AbstractFlipFlop extends InstanceFactory {
 	    setAttributes(
 	        new Attribute[] {triggerAttribute, StdAttr.LABEL, StdAttr.LABEL_FONT, StdAttr.APPEARANCE},
 	        new Object[] {
-	          StdAttr.TRIG_RISING, "", StdAttr.DEFAULT_LABEL_FONT, AppPreferences.getDefaultAppearance()
+	          StdAttr.TRIG_RISING, "", StdAttr.DEFAULT_LABEL_FONT, StdAttr.APPEAR_EVOLUTION
 	        });
 	    setInstancePoker(Poker.class);
 	    setInstanceLogger(Logger.class);
 	  }
+
+  @Override
+  public AttributeSet createAttributeSet() {
+    return new EvolutionAttributes(super.createAttributeSet());
+  }
 
   private void updatePorts(Instance instance) {
     Port[] ps = new Port[numInputs + STD_PORTS];

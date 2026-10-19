@@ -156,7 +156,7 @@ public class DipSwitch extends InstanceFactory {
         new Object[] {
           Direction.NORTH,
           "",
-          Direction.EAST,
+          Direction.WEST,
           StdAttr.DEFAULT_LABEL_FONT,
           StdAttr.DEFAULT_LABEL_COLOR,
           true,
@@ -170,6 +170,11 @@ public class DipSwitch extends InstanceFactory {
             new BitWidthConfigurator(ATTR_SIZE),
             new DirectionConfigurator(StdAttr.LABEL_LOC, KeyEvent.ALT_DOWN_MASK)));
     setInstancePoker(Poker.class);
+  }
+
+  @Override
+  public AttributeSet createAttributeSet() {
+    return new FixedLabelAttributes(super.createAttributeSet());
   }
 
   @Override

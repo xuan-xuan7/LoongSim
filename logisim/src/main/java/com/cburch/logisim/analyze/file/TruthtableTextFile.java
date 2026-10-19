@@ -37,10 +37,12 @@ import com.cburch.logisim.analyze.model.Var;
 import com.cburch.logisim.analyze.model.VariableList;
 import com.cburch.logisim.circuit.Circuit;
 import com.cburch.logisim.gui.generic.OptionPane;
+import com.cburch.logisim.util.SyntaxChecker;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Scanner;
@@ -99,7 +101,7 @@ public class TruthtableTextFile {
   }
 
   public static void doSave(File file, AnalyzerModel model) throws IOException {
-    PrintStream out = new PrintStream(file);
+    PrintStream out = new PrintStream(file, StandardCharsets.UTF_8.name());
     try {
       out.println(S.get("tableRemark1"));
       Circuit c = model.getCurrentCircuit();
@@ -164,7 +166,7 @@ public class TruthtableTextFile {
   }
 
   static final Pattern NAME_FORMAT =
-      Pattern.compile("([a-zA-Z][a-zA-Z_0-9]*)\\[(-?[0-9]+)\\.\\.(-?[0-9]+)\\]");
+      Pattern.compile("(" + SyntaxChecker.IDENTIFIER_PATTERN + ")\\[(-?[0-9]+)\\.\\.(-?[0-9]+)\\]");
 
   static void validateHeader(String line, VariableList inputs, VariableList outputs, int lineno)
       throws IOException {
@@ -179,7 +181,7 @@ public class TruthtableTextFile {
         continue;
       }
       String name = s[i];
-      if (name.matches("[a-zA-Z][a-zA-Z_0-9]*")) {
+      if (SyntaxChecker.isIdentifier(name)) {
         cur.add(new Var(name, 1));
       } else {
         Matcher m = NAME_FORMAT.matcher(name);
@@ -301,7 +303,7 @@ public class TruthtableTextFile {
 
   public static void doLoad(File file, AnalyzerModel model, JFrame parent) throws IOException {
     int lineno = 0;
-    Scanner sc = new Scanner(file);
+    Scanner sc = new Scanner(file, StandardCharsets.UTF_8.name());
     VariableList inputs = new VariableList(AnalyzerModel.MAX_INPUTS);
     VariableList outputs = new VariableList(AnalyzerModel.MAX_OUTPUTS);
     ArrayList<Entry[]> rows = new ArrayList<>();
@@ -309,6 +311,7 @@ public class TruthtableTextFile {
       while (sc.hasNextLine()) {
         lineno++;
         String line = sc.nextLine();
+        if (lineno == 1 && line.startsWith("\uFEFF")) line = line.substring(1);
         int ix = line.indexOf('#');
         if (ix >= 0) line = line.substring(0, ix);
         line = line.trim();

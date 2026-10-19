@@ -73,7 +73,7 @@ import javax.swing.border.Border;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellEditor;
-import org.jdesktop.xswingx.BuddySupport;
+import org.jdesktop.swingx.prompt.BuddySupport;
 
 import com.cburch.logisim.analyze.model.ParserException;
 import com.cburch.logisim.analyze.model.Var;
@@ -341,17 +341,9 @@ public class VariableTab extends AnalyzerTab {
     int err = OK;
     if (text.length() == 0) {
       err = EMPTY;
-    } else if (!Character.isJavaIdentifierStart(text.charAt(0))) {
+    } else if (!Character.isLetter(text.codePointAt(0))) {
       error.setText(S.get("variableStartError"));
       err = BAD_NAME;
-    } else {
-      for (int i = 1; i < text.length() && err == OK; i++) {
-        char c = text.charAt(i);
-        if (!Character.isJavaIdentifierPart(c)) {
-          error.setText(S.fmt("variablePartError", "" + c));
-          err = BAD_NAME;
-        }
-      }
     }
     if (err == OK) {
       String message = SyntaxChecker.getErrorMessage(text);

@@ -219,10 +219,19 @@ public class SplitterAttributes extends AbstractAttributeSet {
   public static final Attribute<Integer> ATTR_FANOUT =
       Attributes.forIntegerRange("fanout", S.getter("splitterFanOutAttr"), 1, 64);
 
+  /** Atomic, undoable mapping used by the branch-range editor. Files still store bitN. */
+  public static final Attribute<byte[]> ATTR_MAPPING = new Attribute<byte[]>("bitMapping", null) {
+    @Override
+    public boolean isHidden() { return true; }
+
+    @Override
+    public byte[] parse(String value) { throw new UnsupportedOperationException(); }
+  };
+
   private static final List<Attribute<?>> INIT_ATTRIBUTES =
       Arrays.asList(
           new Attribute<?>[] {
-            StdAttr.FACING, ATTR_FANOUT, ATTR_WIDTH, ATTR_APPEARANCE, ATTR_SPACING
+            StdAttr.FACING, ATTR_FANOUT, ATTR_WIDTH, ATTR_APPEARANCE, ATTR_SPACING, ATTR_MAPPING
           });
 
   private static final String unchosen_val = "none";
@@ -326,6 +335,11 @@ public class SplitterAttributes extends AbstractAttributeSet {
     return attrs;
   }
 
+  @Override
+  public boolean isToSave(Attribute<?> attr) {
+    return attr != ATTR_MAPPING;
+  }
+
   Attribute<?> getBitOutAttribute(int index) {
     return attrs.get(INIT_ATTRIBUTES.size() + index);
   }
@@ -352,6 +366,8 @@ public class SplitterAttributes extends AbstractAttributeSet {
       return (V) appear;
     } else if (attr == ATTR_SPACING) {
       return (V) Integer.valueOf(spacing);
+    } else if (attr == ATTR_MAPPING) {
+      return (V) bit_end.clone();
     } else if (attr instanceof BitOutAttribute) {
       BitOutAttribute bitOut = (BitOutAttribute) attr;
       return (V) Integer.valueOf(bit_end[bitOut.which]);
@@ -391,10 +407,29 @@ public class SplitterAttributes extends AbstractAttributeSet {
       spacing = s;
       parameters = null;
     } else if (attr == ATTR_APPEARANCE) {
-      AttributeOption appearance = (AttributeOption) value;
+      AttributeOption appearance = APPEAR_LEFT;
       if (appear.equals(appearance)) return;
       appear = appearance;
       parameters = null;
+      value = (V) appearance;
+    } else if (attr == ATTR_MAPPING) {
+      byte[] mapping = (byte[]) value;
+      if (mapping.length != bit_end.length) throw new IllegalArgumentException("wrong mapping width");
+      for (byte end : mapping) {
+        if (end < 0 || end > fanout) throw new IllegalArgumentException("invalid branch");
+      }
+      if (Arrays.equals(bit_end, mapping)) return;
+      byte[] old = bit_end;
+      bit_end = mapping.clone();
+      for (int bit = 0; bit < bit_end.length; bit++) {
+        if (old[bit] != bit_end[bit]) {
+          @SuppressWarnings("unchecked")
+          Attribute<Integer> bitAttr = (Attribute<Integer>) getBitOutAttribute(bit);
+          fireAttributeValueChanged(bitAttr, (int) bit_end[bit], (int) old[bit]);
+        }
+      }
+      fireAttributeValueChanged(ATTR_MAPPING, bit_end.clone(), old.clone());
+      return;
     } else if (attr instanceof BitOutAttribute) {
       BitOutAttribute bitOutAttr = (BitOutAttribute) attr;
       int val;

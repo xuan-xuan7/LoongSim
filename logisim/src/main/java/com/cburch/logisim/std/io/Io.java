@@ -38,8 +38,10 @@ import com.cburch.logisim.tools.Tool;
 import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class Io extends Library {
+  private static final Set<String> HIDDEN_TOOLS = Set.of("DotMatrix", "PortIO");
   public static final Attribute<Color> ATTR_COLOR =
       Attributes.forColor("color", S.getter("ioColorAttr"));
   static final Attribute<Color> ATTR_ON_COLOR = Attributes.forColor("color", S.getter("ioOnColor"));
@@ -47,7 +49,7 @@ public class Io extends Library {
       Attributes.forColor("offcolor", S.getter("ioOffColor"));
   static final Attribute<Color> ATTR_BACKGROUND =
       Attributes.forColor("bg", S.getter("ioBackgroundColor"));
-  static final Attribute<Boolean> ATTR_ACTIVE =
+  public static final Attribute<Boolean> ATTR_ACTIVE =
       Attributes.forBoolean("active", S.getter("ioActiveAttr"));
 
   static final Color DEFAULT_BACKGROUND = new Color(255, 255, 255, 0);
@@ -85,6 +87,15 @@ public class Io extends Library {
       tools.addAll(FactoryDescription.getTools(Io.class, DESCRIPTIONS));
     }
     return tools;
+  }
+
+  @Override
+  public List<Tool> getVisibleTools() {
+    List<Tool> visibleTools = new ArrayList<>();
+    for (Tool tool : getTools()) {
+      if (!HIDDEN_TOOLS.contains(tool.getName())) visibleTools.add(tool);
+    }
+    return visibleTools;
   }
 
   public boolean removeLibrary(String Name) {

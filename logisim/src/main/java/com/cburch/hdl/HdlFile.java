@@ -37,6 +37,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 public class HdlFile {
 
@@ -44,7 +45,7 @@ public class HdlFile {
     BufferedReader in = null;
 
     try {
-      in = new BufferedReader(new FileReader(file));
+      in = new BufferedReader(new FileReader(file, StandardCharsets.UTF_8));
 
       StringBuilder content = new StringBuilder();
       String l;
@@ -67,7 +68,7 @@ public class HdlFile {
     BufferedWriter out = null;
 
     try {
-      out = new BufferedWriter(new FileWriter(file));
+      out = new BufferedWriter(new FileWriter(file, StandardCharsets.UTF_8));
       String data = editor.getText();
       out.write(data, 0, data.length());
     } catch (IOException ex) {

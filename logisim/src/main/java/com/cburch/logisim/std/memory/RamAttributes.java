@@ -36,7 +36,6 @@ import com.cburch.logisim.data.AttributeOption;
 import com.cburch.logisim.data.Attributes;
 import com.cburch.logisim.data.BitWidth;
 import com.cburch.logisim.instance.StdAttr;
-import com.cburch.logisim.prefs.AppPreferences;
 import java.awt.Font;
 import java.util.ArrayList;
 import java.util.List;
@@ -63,15 +62,15 @@ public class RamAttributes extends AbstractAttributeSet {
   private BitWidth addrBits = BitWidth.create(8);
   private BitWidth dataBits = BitWidth.create(8);
   private String Label = "";
-  private AttributeOption Trigger = StdAttr.TRIG_RISING;
+  private AttributeOption Trigger = StdAttr.TRIG_HIGH;
   private AttributeOption BusStyle = BUS_SEP;
   private Font LabelFont = StdAttr.DEFAULT_LABEL_FONT;
-  private Boolean LabelVisable = false;
+  private Boolean LabelVisable = true;
   private AttributeOption ByteEnables = BUS_WITHOUT_BYTEENABLES;
-  private Boolean AsynchronousRead = false;
-  private AttributeOption Appearance = AppPreferences.getDefaultAppearance();
+  private Boolean AsynchronousRead = true;
+  private AttributeOption Appearance = StdAttr.APPEAR_CLASSIC;
   private AttributeOption RWBehavior = Mem.READAFTERWRITE;
-  private Boolean ClearPin = false;
+  private Boolean ClearPin = true;
   private AttributeOption lineSize = Mem.SINGLE;
   private Boolean allowMisaligned = false;
   private AttributeOption typeOfEnables = Mem.USEBYTEENABLES;
@@ -81,7 +80,7 @@ public class RamAttributes extends AbstractAttributeSet {
   
   public boolean updateAttributes() {
     ArrayList<Attribute<?>>newList = new ArrayList<Attribute<?>>();
-    boolean changes = false;
+    boolean changes = myAttributes.isEmpty();
     newList.add(Mem.ADDR_ATTR);
     newList.add(Mem.DATA_ATTR);
     newList.add(Mem.ENABLES_ATTR);
@@ -126,6 +125,7 @@ public class RamAttributes extends AbstractAttributeSet {
   @Override
   protected void copyInto(AbstractAttributeSet dest) {
     RamAttributes d = (RamAttributes) dest;
+    d.myAttributes = new ArrayList<>(myAttributes);
     d.addrBits = addrBits;
     d.dataBits = dataBits;
     d.Trigger = Trigger;
@@ -220,17 +220,17 @@ public class RamAttributes extends AbstractAttributeSet {
         fireAttributeListChanged();
       fireAttributeValueChanged(attr, value, null);
     } else if (attr == Mem.ENABLES_ATTR) {
-      AttributeOption val = (AttributeOption) value;
+      AttributeOption val = Mem.USEBYTEENABLES;
       if (!typeOfEnables.equals(val)) {
         typeOfEnables = val;
         if (updateAttributes()) fireAttributeListChanged();
-        fireAttributeValueChanged(attr, value, null);
+        fireAttributeValueChanged(Mem.ENABLES_ATTR, val, null);
       }
     } else if (attr == ATTR_TYPE) {
-      AttributeOption val = (AttributeOption) value;
+      AttributeOption val = VOLATILE;
       if (!ramType.equals(val)) {
         ramType = val;
-        fireAttributeValueChanged(attr, value, null);
+        fireAttributeValueChanged(ATTR_TYPE, val, null);
       }
     } else if (attr == StdAttr.LABEL) {
       String NewLabel = (String) value;
@@ -251,25 +251,25 @@ public class RamAttributes extends AbstractAttributeSet {
         fireAttributeListChanged();
       fireAttributeValueChanged(attr, value, null);
     } else if (attr == Mem.ASYNC_READ) {
-      Boolean val = (Boolean) value;
+      Boolean val = Boolean.TRUE;
       if (AsynchronousRead != val) {
         AsynchronousRead = val;
         if (updateAttributes()) fireAttributeListChanged();
-        fireAttributeValueChanged(attr,value,null);
+        fireAttributeValueChanged(Mem.ASYNC_READ,val,null);
       }
     } else if (attr == Mem.READ_ATTR) {
-      AttributeOption val = (AttributeOption) value;
+      AttributeOption val = Mem.READAFTERWRITE;
       if (!RWBehavior.equals(val)) {
         RWBehavior = val;
-        fireAttributeValueChanged(attr,value,null);
+        fireAttributeValueChanged(Mem.READ_ATTR,val,null);
       }
     } else if (attr == ATTR_DBUS) {
-      AttributeOption NewStyle = (AttributeOption) value;
+      AttributeOption NewStyle = BUS_SEP;
       if (BusStyle.equals(NewStyle)) {
         return;
       }
       BusStyle = NewStyle;
-      fireAttributeValueChanged(attr, value, null);
+      fireAttributeValueChanged(ATTR_DBUS, NewStyle, null);
     } else if (attr == StdAttr.LABEL_FONT) {
       Font NewFont = (Font) value;
       if (LabelFont.equals(NewFont)) {
@@ -278,12 +278,12 @@ public class RamAttributes extends AbstractAttributeSet {
       LabelFont = NewFont;
       fireAttributeValueChanged(attr, value, null);
     } else if (attr == StdAttr.LABEL_VISIBILITY) {
-      Boolean newVis = (Boolean) value;
+      Boolean newVis = Boolean.TRUE;
       if (LabelVisable.equals(newVis)) return;
       LabelVisable = newVis;
-      fireAttributeValueChanged(attr, value, null);
+      fireAttributeValueChanged(StdAttr.LABEL_VISIBILITY, newVis, null);
     } else if (attr == ATTR_ByteEnables) {
-      AttributeOption NewBE = (AttributeOption) value;
+      AttributeOption NewBE = BUS_WITHOUT_BYTEENABLES;
       if (ByteEnables.equals(NewBE)) {
         return;
       }
@@ -291,12 +291,12 @@ public class RamAttributes extends AbstractAttributeSet {
         NewBE = BUS_WITHOUT_BYTEENABLES;
       }
       ByteEnables = NewBE;
-      fireAttributeValueChanged(attr, value, null);
+      fireAttributeValueChanged(ATTR_ByteEnables, NewBE, null);
     } else if (attr == CLEAR_PIN) {
-      Boolean val = (Boolean) value;
+      Boolean val = Boolean.TRUE;
       if (ClearPin != val) {
         ClearPin = val;
-        fireAttributeValueChanged(attr, value, null);
+        fireAttributeValueChanged(CLEAR_PIN, val, null);
       }
     } else if (attr == Mem.LINE_ATTR) {
       AttributeOption val = (AttributeOption) value;
@@ -311,10 +311,10 @@ public class RamAttributes extends AbstractAttributeSet {
         fireAttributeValueChanged(attr, value, null);
       }
     } else if (attr == StdAttr.APPEARANCE) {
-      AttributeOption NewAppearance = (AttributeOption) value;
+      AttributeOption NewAppearance = StdAttr.APPEAR_CLASSIC;
       if (Appearance.equals(NewAppearance)) return;
       Appearance = NewAppearance;
-      fireAttributeValueChanged(attr, value, null);
+      fireAttributeValueChanged(StdAttr.APPEARANCE, NewAppearance, null);
     }
   }
 }

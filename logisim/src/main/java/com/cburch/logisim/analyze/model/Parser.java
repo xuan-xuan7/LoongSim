@@ -75,7 +75,7 @@ public class Parser {
     }
   }
 
-  private static boolean okCharacter(char c) {
+  private static boolean okCharacter(int c) {
     return Character.isWhitespace(c)
         || Character.isJavaIdentifierStart(c)
         || "()01~-^+*!&|=\\':[]".indexOf(c) >= 0
@@ -290,10 +290,12 @@ public class Parser {
         return tokens;
       
       int start = pos;
-      char startChar = in.charAt(pos);
-      pos++;
+      int startChar = in.codePointAt(pos);
+      pos += Character.charCount(startChar);
       if (Character.isJavaIdentifierStart(startChar)) {
-        while (Character.isJavaIdentifierPart(in.charAt(pos))) pos++;
+        while (Character.isJavaIdentifierPart(in.codePointAt(pos))) {
+          pos += Character.charCount(in.codePointAt(pos));
+        }
         String name = in.substring(start, pos);
         String subscript = null;
         if (in.charAt(pos) == ':' && "012345679".indexOf(in.charAt(pos+1)) >= 0) {
@@ -441,7 +443,9 @@ public class Parser {
               tokens.add(new Token(TOKEN_ERROR_IDENT, start, in.substring(start, start+1),0));
               break;
           default:
-              while (!okCharacter(in.charAt(pos))) pos++;
+              while (!okCharacter(in.codePointAt(pos))) {
+                pos += Character.charCount(in.codePointAt(pos));
+              }
               String errorText = in.substring(start, pos);
               tokens.add(new Token(TOKEN_ERROR_BADCHAR, start, errorText,0));
         }

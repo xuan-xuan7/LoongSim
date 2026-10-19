@@ -43,8 +43,9 @@ import java.awt.FontMetrics;
 import java.awt.Graphics;
 
 public class ComponentDrawContext {
-  private static final int PIN_OFFS = 2;
-  private static final int PIN_RAD = 4;
+  private static final int PIN_RADIUS = 3;
+  private static final int PIN_DIAMETER = 2 * PIN_RADIUS + 1;
+  private static final Color PIN_COLOR = new Color(0, 120, 48);
 
   private java.awt.Component dest;
   private Circuit circuit;
@@ -103,22 +104,24 @@ public class ComponentDrawContext {
 
     EndData e = comp.getEnd(i);
     Location pt = e.getLocation();
+    drawConnectionPoint(pt);
     int x = pt.getX();
     int y = pt.getY();
-    final int CLK_SZ = 4;
-    final int CLK_SZD = CLK_SZ - 1;
+    final int CLK_BASE = PIN_RADIUS + 1;
+    final int CLK_TIP = CLK_BASE + 3;
+    final int CLK_HALF_HEIGHT = 3;
     if (dir == Direction.NORTH) {
-      g.drawLine(x - CLK_SZD, y - 1, x, y - CLK_SZ);
-      g.drawLine(x + CLK_SZD, y - 1, x, y - CLK_SZ);
+      g.drawLine(x - CLK_HALF_HEIGHT, y - CLK_BASE, x, y - CLK_TIP);
+      g.drawLine(x + CLK_HALF_HEIGHT, y - CLK_BASE, x, y - CLK_TIP);
     } else if (dir == Direction.SOUTH) {
-      g.drawLine(x - CLK_SZD, y + 1, x, y + CLK_SZ);
-      g.drawLine(x + CLK_SZD, y + 1, x, y + CLK_SZ);
+      g.drawLine(x - CLK_HALF_HEIGHT, y + CLK_BASE, x, y + CLK_TIP);
+      g.drawLine(x + CLK_HALF_HEIGHT, y + CLK_BASE, x, y + CLK_TIP);
     } else if (dir == Direction.EAST) {
-      g.drawLine(x + 1, y - CLK_SZD, x + CLK_SZ, y);
-      g.drawLine(x + 1, y + CLK_SZD, x + CLK_SZ, y);
+      g.drawLine(x + CLK_BASE, y - CLK_HALF_HEIGHT, x + CLK_TIP, y);
+      g.drawLine(x + CLK_BASE, y + CLK_HALF_HEIGHT, x + CLK_TIP, y);
     } else if (dir == Direction.WEST) {
-      g.drawLine(x - 1, y - CLK_SZD, x - CLK_SZ, y);
-      g.drawLine(x - 1, y + CLK_SZD, x - CLK_SZ, y);
+      g.drawLine(x - CLK_BASE, y - CLK_HALF_HEIGHT, x - CLK_TIP, y);
+      g.drawLine(x - CLK_BASE, y + CLK_HALF_HEIGHT, x - CLK_TIP, y);
     }
 
     g.setColor(curColor);
@@ -160,59 +163,54 @@ public class ComponentDrawContext {
     drawHandle(left, top);
   }
 
-  public void drawPin(Component comp, int i) {
-    EndData e = comp.getEnd(i);
-    Location pt = e.getLocation();
+  private void drawConnectionPoint(Location pt) {
     Color curColor = g.getColor();
-    if (getShowState()) {
-      CircuitState state = getCircuitState();
-      g.setColor(state.getValue(pt).getColor());
-    } else {
+    if (isPrintView()) {
       g.setColor(Color.BLACK);
+      g.fillOval(pt.getX() - 2, pt.getY() - 2, 4, 4);
+    } else {
+      // A fixed marker identifies the connection target; wires still show their signal colors.
+      g.setColor(Color.WHITE);
+      g.fillOval(pt.getX() - PIN_RADIUS - 1, pt.getY() - PIN_RADIUS - 1,
+          PIN_DIAMETER + 2, PIN_DIAMETER + 2);
+      Color color = shouldDrawColor() ? PIN_COLOR : Color.BLACK;
+      if (shouldDrawColor() && getShowState() && circuitState != null
+          && circuitState.getValue(pt).isErrorValue()) {
+        color = circuitState.getValue(pt).getColor();
+      }
+      g.setColor(color);
+      g.fillOval(pt.getX() - PIN_RADIUS, pt.getY() - PIN_RADIUS, PIN_DIAMETER, PIN_DIAMETER);
     }
-    g.fillOval(pt.getX() - PIN_OFFS, pt.getY() - PIN_OFFS, PIN_RAD, PIN_RAD);
     g.setColor(curColor);
   }
 
+  public void drawPin(Component comp, int i) {
+    drawConnectionPoint(comp.getEnd(i).getLocation());
+  }
+
   public void drawPin(Component comp, int i, String label, Direction dir) {
-    Color curColor = g.getColor();
     if (i < 0 || i >= comp.getEnds().size()) return;
     EndData e = comp.getEnd(i);
     Location pt = e.getLocation();
     int x = pt.getX();
     int y = pt.getY();
-    if (getShowState()) {
-      CircuitState state = getCircuitState();
-      g.setColor(state.getValue(pt).getColor());
-    } else {
-      g.setColor(Color.BLACK);
-    }
-    g.fillOval(x - PIN_OFFS, y - PIN_OFFS, PIN_RAD, PIN_RAD);
-    g.setColor(curColor);
+    drawConnectionPoint(pt);
+    int labelOffset = isPrintView() ? 3 : PIN_RADIUS + 3;
     if (dir == Direction.EAST) {
-      GraphicsUtil.drawText(g, label, x + 3, y, GraphicsUtil.H_LEFT, GraphicsUtil.V_CENTER);
+      GraphicsUtil.drawText(g, label, x + labelOffset, y, GraphicsUtil.H_LEFT, GraphicsUtil.V_CENTER);
     } else if (dir == Direction.WEST) {
-      GraphicsUtil.drawText(g, label, x - 3, y, GraphicsUtil.H_RIGHT, GraphicsUtil.V_CENTER);
+      GraphicsUtil.drawText(g, label, x - labelOffset, y, GraphicsUtil.H_RIGHT, GraphicsUtil.V_CENTER);
     } else if (dir == Direction.SOUTH) {
-      GraphicsUtil.drawText(g, label, x, y - 3, GraphicsUtil.H_CENTER, GraphicsUtil.V_BASELINE);
+      GraphicsUtil.drawText(g, label, x, y - labelOffset, GraphicsUtil.H_CENTER, GraphicsUtil.V_BASELINE);
     } else if (dir == Direction.NORTH) {
-      GraphicsUtil.drawText(g, label, x, y + 3, GraphicsUtil.H_CENTER, GraphicsUtil.V_TOP);
+      GraphicsUtil.drawText(g, label, x, y + labelOffset, GraphicsUtil.H_CENTER, GraphicsUtil.V_TOP);
     }
   }
 
   public void drawPins(Component comp) {
-    Color curColor = g.getColor();
     for (EndData e : comp.getEnds()) {
-      Location pt = e.getLocation();
-      if (getShowState()) {
-        CircuitState state = getCircuitState();
-        g.setColor(state.getValue(pt).getColor());
-      } else {
-        g.setColor(Color.BLACK);
-      }
-      g.fillOval(pt.getX() - PIN_OFFS, pt.getY() - PIN_OFFS, PIN_RAD, PIN_RAD);
+      drawConnectionPoint(e.getLocation());
     }
-    g.setColor(curColor);
   }
 
   public void drawRectangle(Component comp) {

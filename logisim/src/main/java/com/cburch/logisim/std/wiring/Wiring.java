@@ -40,8 +40,13 @@ import com.cburch.logisim.tools.Library;
 import com.cburch.logisim.tools.Tool;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class Wiring extends Library {
+
+  // Hide these entries in the toolbox while retaining support for existing circuit files.
+  private static final Set<String> HIDDEN_TOOLS =
+      Set.of("Pull Resistor", "POR", "NoConnect", "Transistor", "Transmission Gate");
 
   static final AttributeOption GATE_TOP_LEFT =
       new AttributeOption("tl", S.getter("wiringGateTopLeftOption"));
@@ -98,6 +103,17 @@ public class Wiring extends Library {
       tools = ret;
     }
     return tools;
+  }
+
+  @Override
+  public List<Tool> getVisibleTools() {
+    List<Tool> visibleTools = new ArrayList<>();
+    for (Tool tool : getTools()) {
+      if (!HIDDEN_TOOLS.contains(tool.getName())) {
+        visibleTools.add(tool);
+      }
+    }
+    return visibleTools;
   }
 
   public boolean removeLibrary(String Name) {
