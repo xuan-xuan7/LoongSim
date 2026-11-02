@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project source="3.3.6" version="1.0">
+  <lib desc="#Wiring" name="0"/>
+  <lib desc="#Gates" name="1"/>
+  <main name="main"/>
+  <circuit name="main">
+    <comp lib="0" name="Pin" loc="(100,120)">
+      <a name="label" val="switchIn"/>
+    </comp>
+    <comp lib="0" name="Pin" loc="(280,120)">
+      <a name="output" val="true"/>
+      <a name="facing" val="west"/>
+      <a name="label" val="ledOut"/>
+    </comp>
+    <wire from="(100,120)" to="(280,120)"/>
+  </circuit>
+</project>

@@ -28,6 +28,8 @@
 
 package com.cburch.logisim.fpga.hdlgenerator;
 
+import java.nio.charset.StandardCharsets;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -220,9 +222,9 @@ public class FileWriter {
       FileOutputStream output = new FileOutputStream(outfile);
       for (String ThisLine : Contents) {
         if (!ThisLine.isEmpty()) {
-          output.write(ThisLine.getBytes());
+          output.write(ThisLine.getBytes(StandardCharsets.UTF_8));
         }
-        output.write("\n".getBytes());
+        output.write("\n".getBytes(StandardCharsets.UTF_8));
       }
       output.flush();
       output.close();

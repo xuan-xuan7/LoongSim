@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "platform": "windows-x64",
+  "device": "xc7a200tfbg676-1",
+  "ossCadSuite": {
+    "version": "2026-10-21",
+    "file": "oss-cad-suite-windows-x64-20261021.tgz",
+    "url": "https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-10-21/oss-cad-suite-windows-x64-20261021.tgz",
+    "sha256": "ac6c0032046d15dc9213b1ee66c30629d4a8f6e98c3bdc1804b69f9c2a83a905"
+  },
+  "openxc7": {
+    "version": "2026-10-27",
+    "requiresOssCadSuite": "2026-10-21",
+    "file": "openxc7-toolchain-windows-amd64-20261027.tgz",
+    "url": "https://github.com/cavearr/toolchain-openxc7-releases/releases/download/2026-10-27/openxc7-toolchain-windows-amd64-20261027.tgz",
+    "sha256": "7dca9bae379c1ae88a48a18534609a409f9bea8e00fdb368fc37d01c0f386bc7"
+  }
+}

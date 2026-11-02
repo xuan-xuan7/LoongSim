@@ -50,6 +50,7 @@ import com.cburch.logisim.prefs.AppPreferences;
 import com.cburch.logisim.proj.Project;
 import com.cburch.logisim.proj.ProjectActions;
 import com.cburch.logisim.util.LocaleManager;
+import com.cburch.logisim.util.ApplicationIcon;
 import com.cburch.logisim.util.MacCompatibility;
 import com.cburch.logisim.util.StringUtil;
 import org.drjekyll.fontchooser.FontChooser;
@@ -620,6 +621,7 @@ public class Startup implements AWTEventListener {
       }
     }
 
+    ApplicationIcon.install();
     // kick off the progress monitor
     // (The values used for progress values are based on a single run where
     // I loaded a large file.)

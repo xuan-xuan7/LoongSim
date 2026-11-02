@@ -59,7 +59,7 @@ public class FpgaLogisimCompatibilityTest {
       LoongSimFpgaFlow flow = new LoongSimFpgaFlow();
       LoongSimFpgaFlow.ExportResult result = flow.generateVerilog(
           project, file.getMainCircuit(), directory, message -> {});
-      assertEquals(clock ? "main_LoongSimTop" : "main", result.getTopModule());
+      assertEquals(clock ? "main_LoongSimTop_LoongSimBoardTop" : "main_LoongSimBoardTop", result.getTopModule());
       assertEquals(result.getPorts().toString(), 2, result.getPorts().size());
       assertFalse(Files.exists(directory.resolve("constraints.xdc")));
 
@@ -78,7 +78,7 @@ public class FpgaLogisimCompatibilityTest {
       for (String port : mappings.keySet()) assertTrue(xdc.contains(port));
       assertTrue(Files.isRegularFile(directory.resolve("mapping.json")));
       assertFalse(Files.readAllLines(directory.resolve("sources.list")).isEmpty());
-      assertTrue(Files.isRegularFile(flow.findYosys()));
+      assertEquals("xc7a200tfbg676-1", LoongSimBoardCatalog.DEVICE);
       assertTrue(getClass().getResource("/resources/loongsim/board-front.png") != null);
     } finally {
       project.getSimulator().shutDown();

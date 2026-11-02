@@ -29,6 +29,7 @@
 package com.cburch.logisim.gui.start;
 
 import static com.cburch.logisim.gui.Strings.S;
+import com.cburch.logisim.util.ApplicationIcon;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -94,11 +95,12 @@ public class SplashScreen extends JWindow implements ActionListener {
   long startTime = System.currentTimeMillis();
 
   public SplashScreen() {
-    setName("Welcome to Logisim Evolution");
-    JPanel imagePanel = About.getImagePanel();
-    imagePanel.setBorder(null);
+    setName("LoongSim");
+    ApplicationIcon.attach(this);
+    JPanel imagePanel = new LoongSimSplashPanel();
 
     progress.setStringPainted(true);
+    progress.setForeground(new Color(180, 0, 24));
 
     JPanel buttonPanel = new JPanel();
     buttonPanel.add(close);
@@ -110,7 +112,7 @@ public class SplashScreen extends JWindow implements ActionListener {
     contents.add(imagePanel, BorderLayout.NORTH);
     contents.add(progress, BorderLayout.CENTER);
     contents.add(buttonPanel, BorderLayout.SOUTH);
-    contents.setBorder(BorderFactory.createLineBorder(Color.BLACK, 2));
+    contents.setBorder(BorderFactory.createLineBorder(new Color(226, 232, 240), 1));
 
     Color bg = imagePanel.getBackground();
     contents.setBackground(bg);

@@ -10,9 +10,7 @@ import com.cburch.logisim.fpga.gui.FPGAReport;
 import com.cburch.logisim.instance.StdAttr;
 import com.cburch.logisim.proj.Project;
 import com.cburch.logisim.std.wiring.Clock;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
@@ -35,10 +33,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-/** First two stages of the LoongSim FPGA workflow: Verilog export and Yosys synthesis. */
+/** Logisim export, board mapping and synthesis; implementation continues in FpgaImplementation. */
 public final class LoongSimFpgaFlow {
   private static final String BOARD_XDC = "loongson-a7-fbg676-1.xdc";
-  private static final String RUNTIME_YOSYS = "fpga/yosys-runtime/usr/bin/yosys";
   private static final long BOARD_CLOCK_HZ = 100_000_000L;
   private static final String FPGA_GLOBAL_CLOCK = "FPGA_GlobalClock";
   private static final String CLOCK_TOP_SUFFIX = "_LoongSimTop";
@@ -93,7 +90,8 @@ public final class LoongSimFpgaFlow {
     Files.createDirectories(projectDirectory.resolve("verilog"));
 
     report(sink, "开始导出电路: " + circuit.getName());
-    FPGAReport reporter = new FPGAReport(sink);
+    FpgaPortLabels displayLabels = new FpgaPortLabels(circuit);
+    FPGAReport reporter = new FPGAReport(sink == null ? message -> {} : sink);
     // Keep labels optional in the editor. The original Logisim annotation
     // algorithm supplies stable HDL names only for components that need one.
     circuit.ClearAnnotationLevel();
@@ -158,19 +156,33 @@ public final class LoongSimFpgaFlow {
       writeClockWrapper(topVerilog, topModule, circuitName, circuitPorts, circuit, project);
       projectSources = new ArrayList<>(findVerilogFiles(projectDirectory));
     }
+    // The circuit/clock modules retain their original logical values. A distinct
+    // outer module adapts the selected board's electrical levels after mapping.
+    String logicalModule = topModule;
+    List<FpgaPort> logicalPorts = readTopPorts(topVerilog, logicalModule);
+    String boardTop = logicalModule + "_LoongSimBoardTop";
+    int suffix = 1;
+    while (findTopVerilog(projectDirectory, boardTop) != null) {
+      boardTop = logicalModule + "_LoongSimBoardTop_" + suffix++;
+    }
+    topModule = boardTop;
+    FpgaBoardAdapter.write(projectDirectory, topModule, logicalModule, logicalPorts, Map.of());
+    topVerilog = projectDirectory.resolve("verilog/loongsim-board-interface.v");
+    projectSources = findVerilogFiles(projectDirectory);
     for (Path source : projectSources) {
       if (Files.size(source) == 0) {
         throw new IOException("生成的 Verilog 文件为空: " + source);
       }
     }
-    List<FpgaPort> ports = filterMappablePorts(circuit,
-        readTopPorts(topVerilog, topModule), hasClockWrapper);
+    List<FpgaPort> ports = displayLabels.apply(circuit, filterMappablePorts(circuit,
+        readTopPorts(topVerilog, topModule), hasClockWrapper));
     if (ports.isEmpty()) {
       throw new IOException("顶层 Verilog 没有可映射端口: " + topModule);
     }
     writeProjectFiles(projectDirectory, topModule, projectSources, false);
+    writePortLabels(projectDirectory.resolve("port-labels.json"), ports);
     report(sink, "已生成板卡模板: " + boardTemplate);
-    report(sink, "已识别顶层端口: " + ports.stream().map(FpgaPort::getName)
+    report(sink, "已识别顶层端口: " + ports.stream().map(FpgaPort::getDisplayName)
         .collect(Collectors.joining(", ")));
     writePendingReadme(projectDirectory, circuitName, topModule, hasClockWrapper);
     report(sink, "请完成 FPGA 端口映射后再生成专属 XDC");
@@ -180,9 +192,34 @@ public final class LoongSimFpgaFlow {
 
   public void runYosys(Path projectDirectory, String topModule, Consumer<String> sink)
       throws IOException, InterruptedException {
-    Path yosys = findYosys();
-    if (yosys == null) {
-      throw new IOException("未找到 LoongArch Yosys，请确认 fpga/yosys-runtime 已放入项目");
+    projectDirectory = projectDirectory.toAbsolutePath().normalize();
+    FpgaToolchain tools = FpgaToolchain.discover();
+    tools.requireSynthesis();
+    List<Path> verilogFiles = validateProject(projectDirectory, topModule);
+    FpgaBuildArtifacts.clearSynthesis(projectDirectory);
+    String inputs = FpgaBuildArtifacts.inputDigest(projectDirectory);
+    StringBuilder script = new StringBuilder();
+    for (Path file : verilogFiles) {
+      script.append("read_verilog ").append(yosysQuote(projectDirectory.relativize(file).toString()
+          .replace('\\', '/'))).append(";\n");
+    }
+    script.append("hierarchy -check -top ").append(topModule).append(";\n");
+    script.append("synth_xilinx -flatten -top ").append(topModule).append(";\n");
+    script.append("check -assert;\nwrite_json yosys-netlist.json;\n");
+    Files.writeString(projectDirectory.resolve("synthesis.ys"), script, StandardCharsets.UTF_8);
+    report(sink, "使用内置综合工具: " + tools.yosys());
+    FpgaToolProcess.run(tools, projectDirectory,
+        List.of(tools.yosys().toString(), "-s", "synthesis.ys"), "synthesis.log", sink);
+    if (!inputs.equals(FpgaBuildArtifacts.inputDigest(projectDirectory))) {
+      throw new IOException("综合期间源文件或约束发生改变，请重新生成工程并综合");
+    }
+    FpgaBuildArtifacts.recordSynthesis(projectDirectory);
+    report(sink, "综合完成: " + projectDirectory.resolve("yosys-netlist.json"));
+  }
+
+  static List<Path> validateProject(Path projectDirectory, String topModule) throws IOException {
+    if (topModule == null || !topModule.matches("[A-Za-z_][A-Za-z0-9_$]*")) {
+      throw new IOException("无效的工程顶层模块名称");
     }
     Path constraints = projectDirectory.resolve("constraints.xdc");
     if (!Files.isRegularFile(constraints)) {
@@ -208,40 +245,7 @@ public final class LoongSimFpgaFlow {
         .collect(Collectors.toCollection(LinkedHashSet::new));
     validateGeneratedXdc(constraints, topPortNames);
 
-    StringBuilder script = new StringBuilder();
-    for (Path file : verilogFiles) {
-      script.append("read_verilog ").append(yosysQuote(file.toAbsolutePath().toString())).append("; ");
-    }
-    script.append("hierarchy -top ").append(yosysQuote(topModule)).append("; ");
-    // Berkeley ABC is shipped beside Yosys in the fixed runtime package.
-    script.append("synth_xilinx -top ").append(yosysQuote(topModule)).append("; ");
-    script.append("write_json ").append(yosysQuote(
-        projectDirectory.resolve("yosys-netlist.json").toAbsolutePath().toString())).append(";");
-
-    report(sink, "使用固定 Yosys: " + yosys);
-    ProcessBuilder processBuilder = new ProcessBuilder(yosys.toString(), "-p", script.toString());
-    processBuilder.directory(yosys.getParent().toFile());
-    Path runtimeRoot = yosys.getParent().getParent().getParent();
-    Path yosysData = runtimeRoot.resolve("usr/share/yosys");
-    Path abc = runtimeRoot.resolve("usr/bin/berkeley-abc");
-    if (!Files.isDirectory(yosysData)) {
-      throw new IOException("Yosys 运行时缺少技术库目录: " + yosysData);
-    }
-    if (!Files.isRegularFile(abc)) {
-      throw new IOException("Yosys 运行时缺少 Berkeley ABC: " + abc);
-    }
-    processBuilder.environment().put("YOSYS_DATDIR", yosysData.toString());
-    processBuilder.environment().put("ABCEXE", abc.toString());
-    processBuilder.redirectErrorStream(true);
-    Process process = processBuilder.start();
-    try (BufferedReader reader = new BufferedReader(
-        new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-      String line;
-      while ((line = reader.readLine()) != null) report(sink, line);
-    }
-    int exitCode = process.waitFor();
-    if (exitCode != 0) throw new IOException("Yosys 综合失败，退出码: " + exitCode);
-    report(sink, "Yosys 综合完成: " + projectDirectory.resolve("yosys-netlist.json"));
+    return verilogFiles;
   }
 
   /** Validate a confirmed mapping and create the XDC used by later implementation stages. */
@@ -258,9 +262,10 @@ public final class LoongSimFpgaFlow {
       resources.put(resource.getId(), resource);
     }
     Set<String> usedResources = new HashSet<>();
-    Set<String> circuitPorts = new LinkedHashSet<>();
-    for (FpgaPort port : ports) {
-      circuitPorts.add(port.getName());
+    Set<String> circuitPorts = ports.stream().map(FpgaPort::getName)
+        .collect(Collectors.toCollection(LinkedHashSet::new));
+    List<FpgaPort> targets = FpgaPortMapping.targets(ports, mappings);
+    for (FpgaPort port : targets) {
       String resourceId = mappings.get(port.getName());
       FpgaResource resource = resourceId == null ? null : resources.get(resourceId);
       if (resource == null || !resource.accepts(port)) {
@@ -273,38 +278,47 @@ public final class LoongSimFpgaFlow {
       }
       usedResources.add(resourceId);
     }
-    Set<String> extraMappings = new LinkedHashSet<>(mappings.keySet());
-    extraMappings.removeAll(circuitPorts);
-    if (!extraMappings.isEmpty()) {
-      throw new IOException("映射中包含不存在的顶层端口: " + extraMappings);
-    }
     Path template = projectDirectory.resolve("board-template.xdc");
     if (!Files.isRegularFile(template)) throw new IOException("找不到 board-template.xdc");
     Set<String> templateResources = readBoardResources(template);
     for (String resource : mappings.values()) {
+      if (LoongSimBoardCatalog.isVirtualResource(resource)) continue;
       if (!matchesBoardResource(resource, templateResources)) {
         throw new IOException("板卡资源不在 XDC 模板中: " + resource);
       }
     }
-    Path topVerilog = findTopVerilog(projectDirectory, topModule);
+    String logicalModule = FpgaBoardAdapter.logicalModule(projectDirectory);
+    Path topVerilog = findTopVerilog(projectDirectory, logicalModule);
     if (topVerilog == null) throw new IOException("找不到顶层 Verilog 模块: " + topModule);
-    List<FpgaPort> generatedPorts = readTopPorts(topVerilog, topModule);
+    List<FpgaPort> generatedPorts = readTopPorts(topVerilog, logicalModule);
     if (!containsPorts(generatedPorts, ports)) {
       throw new IOException("顶层 Verilog 已变化，请重新生成工程后再映射");
     }
+    FpgaBoardAdapter.MappingResult physical = FpgaBoardAdapter.applyMapping(
+        projectDirectory, topModule, generatedPorts, mappings, targets);
+    Set<String> physicalNames = physical.ports.stream().map(FpgaPort::getName)
+        .collect(Collectors.toCollection(LinkedHashSet::new));
+    FpgaBuildArtifacts.clearSynthesis(projectDirectory);
     Path constraints = projectDirectory.resolve("constraints.xdc");
-    Set<String> emittedResources = generateCircuitXdc(template, constraints, circuitPorts,
-        mappings, topModule);
-    if (!emittedResources.containsAll(mappings.values())) {
-      Set<String> missing = new LinkedHashSet<>(mappings.values());
+    Set<String> emittedResources = generateCircuitXdc(template, constraints, physicalNames,
+        physical.mappings, topModule);
+    if (!emittedResources.containsAll(physical.mappings.values())) {
+      Set<String> missing = new LinkedHashSet<>(physical.mappings.values());
       missing.removeAll(emittedResources);
       throw new IOException("XDC 模板没有为这些映射生成有效约束: " + missing);
     }
-    validateGeneratedXdc(constraints, circuitPorts);
-    validateMappedIoConstraints(constraints, mappings);
+    validateGeneratedXdc(constraints, physicalNames);
+    validateMappedIoConstraints(constraints, FpgaPortMapping.targets(physical.ports, physical.mappings));
     Set<String> boardResources = resources.keySet();
     writeMappingJson(projectDirectory.resolve("mapping.json"), topModule, circuitPorts,
-        boardResources, mappings);
+        boardResources, mappings, ports);
+    writePortLabels(projectDirectory.resolve("port-labels.json"), ports);
+    if (mappings.values().stream().anyMatch(LoongSimBoardCatalog::isDisplay)) {
+      report(sink, "已自动连接数码管选位；多个显示位置由板载时钟轮流刷新。");
+    }
+    if (mappings.values().stream().anyMatch(LoongSimBoardCatalog::isKeypadKey)) {
+      report(sink, "已连接矩阵键盘按键；扫描、防抖与行列引脚由 LoongSim 处理（按下为1，松开为0）。");
+    }
     writeProjectFiles(projectDirectory, topModule, findVerilogFiles(projectDirectory), true);
     Files.write(projectDirectory.resolve("README.txt"), List.of(
         "LoongSim FPGA 工程",
@@ -315,9 +329,17 @@ public final class LoongSimFpgaFlow {
         "mapping.json: 电路端口到板卡资源的映射清单。",
         "top-module.txt 和 sources.list 可直接提供给后续综合、布局布线工具。",
         "如果电路使用 Logisim Clock，LoongSim 会自动生成时钟支持模块和顶层封装。",
+        "loongsim-board-interface.v 自动适配单色 LED 的低电平点亮；电路逻辑 1 对应灯亮。",
         "完成约束和综合后，constraints.xdc 与 yosys-netlist.json 属于同一个顶层模块。"),
         StandardCharsets.UTF_8);
     report(sink, "端口映射已确认，已生成: " + projectDirectory.resolve("constraints.xdc"));
+    for (Map.Entry<String, String> entry : mappings.entrySet()) {
+      if (LoongSimBoardCatalog.isActiveLowLed(entry.getValue())) {
+        String display = targets.stream().filter(port -> port.getName().equals(entry.getKey()))
+            .map(FpgaPort::getDisplayName).findFirst().orElse(entry.getKey());
+        report(sink, "已适配 LED 低电平点亮: " + display + "（电路 1 = 灯亮）");
+      }
+    }
   }
 
   private static void writePendingReadme(Path projectDirectory, String circuitName,
@@ -327,7 +349,7 @@ public final class LoongSimFpgaFlow {
     lines.add("LoongSim FPGA 工程");
     lines.add("电路模块: " + circuitName);
     lines.add("实现顶层模块: " + topModule);
-    lines.add("目标器件: xc7a200tfbgb676-1");
+    lines.add("目标器件: " + LoongSimBoardCatalog.DEVICE);
     lines.add("top-module.txt: 后续综合和布局布线使用的顶层模块名。");
     lines.add("sources.list: 后续工具需要读取的全部 Verilog 源文件。");
     lines.add("board-template.xdc: 这块 FPGA 板卡的完整约束模板。");
@@ -337,18 +359,15 @@ public final class LoongSimFpgaFlow {
       lines.add("检测到 Logisim Clock，已生成 LoongSim 时钟分频器和顶层封装。");
       lines.add("请将顶层 FPGA_GlobalClock 映射到板卡专用 clk 资源。");
     } else {
-      lines.add("顶层模块就是电路本身，没有额外时钟封装。");
+      lines.add("电路没有额外时钟封装；外层板卡接口在映射后处理 LED 的有效电平。");
     }
     lines.add("完成映射后，constraints.xdc 可直接交给后续 FPGA 实现流程。");
     Files.write(projectDirectory.resolve("README.txt"), lines, StandardCharsets.UTF_8);
   }
 
   public Path findYosys() {
-    for (Path root : roots()) {
-      Path candidate = root.resolve(RUNTIME_YOSYS).normalize();
-      if (Files.isRegularFile(candidate)) return candidate;
-    }
-    return null;
+    Path candidate = FpgaToolchain.discover().yosys();
+    return Files.isRegularFile(candidate) ? candidate : null;
   }
 
   private Path findBoardXdc() {
@@ -383,7 +402,7 @@ public final class LoongSimFpgaFlow {
     }
   }
 
-  private static List<Path> readSourceList(Path projectDirectory) throws IOException {
+  static List<Path> readSourceList(Path projectDirectory) throws IOException {
     Path sourceList = projectDirectory.resolve("sources.list");
     if (!Files.isRegularFile(sourceList)) {
       throw new IOException("工程缺少 sources.list，请重新生成 Verilog 工程");
@@ -613,7 +632,7 @@ public final class LoongSimFpgaFlow {
       connections.add("    ." + port.getName() + "(" + signal + ")");
     }
     for (int i = 0; i < connections.size(); i++) {
-      lines.add(connections.get(i) + (i + 1 < connections.size() ? "," : ";"));
+      lines.add(connections.get(i) + (i + 1 < connections.size() ? "," : ""));
     }
     lines.add("  );");
     lines.add("endmodule");
@@ -851,7 +870,7 @@ public final class LoongSimFpgaFlow {
   }
 
   private static void validateMappedIoConstraints(Path constraints,
-      Map<String, String> mappings) throws IOException {
+      List<FpgaPort> targets) throws IOException {
     Set<String> packagePins = new HashSet<>();
     Set<String> ioStandards = new HashSet<>();
     for (String line : Files.readAllLines(constraints, StandardCharsets.UTF_8)) {
@@ -861,17 +880,21 @@ public final class LoongSimFpgaFlow {
         String port = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
         String base = basePortName(port);
         if (base == null) continue;
-        if (trimmed.startsWith("set_property PACKAGE_PIN")) packagePins.add(base);
-        if (trimmed.startsWith("set_property IOSTANDARD")) ioStandards.add(base);
+        if (trimmed.startsWith("set_property PACKAGE_PIN")) packagePins.add(port);
+        if (trimmed.startsWith("set_property IOSTANDARD")) ioStandards.add(port);
       }
     }
-    for (String circuitPort : mappings.keySet()) {
-      String base = basePortName(circuitPort);
-      if (!packagePins.contains(base)) {
-        throw new IOException("顶层端口缺少 PACKAGE_PIN 约束: " + circuitPort);
-      }
-      if (!ioStandards.contains(base)) {
-        throw new IOException("顶层端口缺少 IOSTANDARD 约束: " + circuitPort);
+    for (FpgaPort target : targets) {
+      for (int bit = 0; bit < target.getWidth(); bit++) {
+        String reference = target.getWidth() == 1 ? target.getName()
+            : target.getName() + "[" + bit + "]";
+        if (!packagePins.contains(reference)) {
+          throw new IOException("端口缺少 PACKAGE_PIN 约束: " + target.getDisplayName() + "（位 " + bit + "）");
+        }
+        if (!ioStandards.contains(reference) && !ioStandards.contains(basePortName(reference))
+            && !ioStandards.contains(basePortName(reference) + "[*]")) {
+          throw new IOException("端口缺少 IOSTANDARD 约束: " + target.getDisplayName() + "（位 " + bit + "）");
+        }
       }
     }
   }
@@ -901,12 +924,13 @@ public final class LoongSimFpgaFlow {
   }
 
   private static void writeMappingJson(Path output, String topModule, Set<String> circuitPorts,
-      Set<String> boardResources, Map<String, String> mappings) throws IOException {
+      Set<String> boardResources, Map<String, String> mappings, List<FpgaPort> ports) throws IOException {
     List<String> lines = new ArrayList<>();
     lines.add("{");
     lines.add("  \"board\": \"loongson-a7-fbg676-1\",");
-    lines.add("  \"device\": \"xc7a200tfbgb676-1\",");
+    lines.add("  \"device\": \"" + LoongSimBoardCatalog.DEVICE + "\",");
     lines.add("  \"topModule\": \"" + jsonEscape(topModule) + "\",");
+    lines.add("  \"portLabelFile\": \"port-labels.json\",");
     lines.add("  \"boardResources\": [");
     int resourceIndex = 0;
     for (String resource : boardResources) {
@@ -922,9 +946,21 @@ public final class LoongSimFpgaFlow {
           + jsonEscape(entry.getValue()) + "\"" + suffix);
     }
     lines.add("  },");
+    lines.add("  \"boardResourceLabels\": {");
+    Map<String, String> labels = new LinkedHashMap<>();
+    for (FpgaResource resource : LoongSimBoardCatalog.resources()) labels.put(resource.getId(), resource.getLabel());
+    index = 0;
+    for (Map.Entry<String, String> entry : mappings.entrySet()) {
+      lines.add("    \"" + jsonEscape(entry.getKey()) + "\": \""
+          + jsonEscape(labels.get(entry.getValue())) + "\"" + (++index < mappings.size() ? "," : ""));
+    }
+    lines.add("  },");
+    lines.add("  \"activeLowLedPorts\": [" + mappings.entrySet().stream()
+        .filter(entry -> LoongSimBoardCatalog.isActiveLowLed(entry.getValue()))
+        .map(entry -> "\"" + jsonEscape(entry.getKey()) + "\"").collect(Collectors.joining(", ")) + "],");
     lines.add("  \"unmappedCircuitPorts\": [");
-    List<String> unmapped = circuitPorts.stream().filter(port -> !mappings.containsKey(port))
-        .collect(Collectors.toList());
+    List<String> unmapped = ports.stream().filter(port -> !FpgaPortMapping.isComplete(port, mappings))
+        .map(FpgaPort::getName).collect(Collectors.toList());
     for (int i = 0; i < unmapped.size(); i++) {
       lines.add("    \"" + jsonEscape(unmapped.get(i)) + "\""
           + (i + 1 < unmapped.size() ? "," : ""));
@@ -934,8 +970,37 @@ public final class LoongSimFpgaFlow {
     Files.write(output, lines, StandardCharsets.UTF_8);
   }
 
+  private static void writePortLabels(Path output, List<FpgaPort> ports) throws IOException {
+    List<String> lines = new ArrayList<>();
+    lines.add("{\n  \"format\": 1,\n  \"ports\": [");
+    for (int index = 0; index < ports.size(); index++) {
+      FpgaPort port = ports.get(index);
+      lines.add("    {");
+      lines.add("      \"hdlName\": \"" + jsonEscape(port.getName()) + "\",");
+      lines.add("      \"displayName\": \"" + jsonEscape(port.getDisplayName()) + "\",");
+      lines.add("      \"direction\": \"" + port.getDirection() + "\",");
+      lines.add("      \"width\": " + port.getWidth() + ",");
+      lines.add("      \"bitLabels\": {");
+      int bitIndex = 0;
+      for (Map.Entry<Integer, String> bit : port.getBitLabels().entrySet()) {
+        lines.add("        \"" + bit.getKey() + "\": \"" + jsonEscape(bit.getValue()) + "\""
+            + (++bitIndex < port.getBitLabels().size() ? "," : ""));
+      }
+      lines.add("      }");
+      lines.add("    }" + (index + 1 < ports.size() ? "," : ""));
+    }
+    lines.add("  ]\n}");
+    Files.write(output, lines, StandardCharsets.UTF_8);
+  }
+
   private static String jsonEscape(String value) {
-    return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    StringBuilder escaped = new StringBuilder();
+    for (char character : value.toCharArray()) {
+      if (character == '\\' || character == '"') escaped.append('\\').append(character);
+      else if (character < 0x20) escaped.append(String.format("\\u%04x", (int) character));
+      else escaped.append(character);
+    }
+    return escaped.toString();
   }
 
   private List<Path> roots() {
@@ -969,14 +1034,34 @@ public final class LoongSimFpgaFlow {
   }
 
   /** Remove only files produced by this workflow; user files in the chosen folder are preserved. */
-  private static void clearGeneratedOutputs(Path directory) throws IOException {
+  static void clearGeneratedOutputs(Path directory) throws IOException {
     Files.createDirectories(directory);
+    Path marker = directory.resolve(".loongsim-generated");
+    Path manifest = directory.resolve("loongsim-project.json");
+    boolean owned = Files.isRegularFile(marker)
+        && "LoongSim FPGA generated outputs v1\n".equals(Files.readString(marker, StandardCharsets.UTF_8));
+    if (!owned && Files.isRegularFile(manifest)) {
+      owned = Files.readString(manifest, StandardCharsets.UTF_8)
+          .contains("\"board\": \"" + LoongSimBoardCatalog.BOARD_ID + "\"");
+    }
+    if (!owned) {
+      for (String name : List.of(".loongsim-generated", "verilog", "README.txt", "board-template.xdc",
+          "constraints.xdc", "mapping.json", "port-labels.json", "yosys-netlist.json", "top-module.txt", "sources.list",
+          "loongsim-project.json", "synthesis.properties", "implementation.properties", "design.bit",
+          "design.fasm", "design.frames", "routed.json", "timing.json", "implementation.xdc")) {
+        if (Files.exists(directory.resolve(name))) {
+          throw new IOException("所选目录已有同名文件且不是 LoongSim 生成目录，请选择新的工程目录，避免覆盖: " + name);
+        }
+      }
+    }
+    Files.writeString(marker, "LoongSim FPGA generated outputs v1\n", StandardCharsets.UTF_8);
+    FpgaBuildArtifacts.clearSynthesis(directory);
     String[] generatedDirectories = {"verilog"};
     for (String generated : generatedDirectories) {
       Path generatedPath = directory.resolve(generated);
       if (Files.exists(generatedPath)) deleteTree(generatedPath);
     }
-    String[] generatedFiles = {"board-template.xdc", "constraints.xdc", "mapping.json",
+    String[] generatedFiles = {"board-template.xdc", "constraints.xdc", "mapping.json", "port-labels.json",
         "README.txt", "yosys-netlist.json", "top-module.txt", "sources.list",
         "loongsim-project.json"};
     for (String generated : generatedFiles) {

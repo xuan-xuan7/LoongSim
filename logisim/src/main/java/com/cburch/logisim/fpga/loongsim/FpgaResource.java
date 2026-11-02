@@ -38,7 +38,17 @@ public final class FpgaResource {
   public int getImageHeight() { return imageHeight; }
 
   public boolean accepts(FpgaPort port) {
-    if (port == null || port.getWidth() != width) return false;
+    if (port == null) return false;
+    if (LoongSimBoardCatalog.isKeypadKey(id)) {
+      return port.getDirection() == Direction.INPUT && port.getWidth() == 1 && !isClockPort(port);
+    }
+    if (LoongSimBoardCatalog.isDisplay(id)) {
+      if (port.getDirection() != Direction.OUTPUT) return false;
+      if (LoongSimBoardCatalog.displaySegment(id) >= 0) return port.getWidth() == 1;
+      if (LoongSimBoardCatalog.isHexDisplay(id)) return port.getWidth() == 4;
+      return port.getWidth() == 7 || port.hasNamedSegments();
+    }
+    if (port.getWidth() != width) return false;
     // A clock constraint is valid only for the board oscillator. Mapping a
     // clock-like top port to a switch would create a physically unreliable
     // design even though the direction and width appear compatible.
@@ -55,7 +65,7 @@ public final class FpgaResource {
   }
 
   private static boolean isClockPort(FpgaPort port) {
-    String name = port.getName();
+    String name = port.getBaseName();
     String lower = name.toLowerCase();
     return "FPGA_GlobalClock".equals(name)
         || "clk".equalsIgnoreCase(name)
@@ -67,6 +77,26 @@ public final class FpgaResource {
   public boolean conflictsWith(String otherId) {
     if (otherId == null) return false;
     if (id.equals(otherId)) return true;
+    boolean keypad = LoongSimBoardCatalog.isKeypadKey(id);
+    boolean otherKeypad = LoongSimBoardCatalog.isKeypadKey(otherId);
+    if (keypad || otherKeypad) {
+      if (keypad && otherKeypad) return false;
+      String raw = keypad ? otherId : id;
+      return raw.equals("btn_key_col") || raw.startsWith("btn_key_col[")
+          || raw.equals("btn_key_row") || raw.startsWith("btn_key_row[");
+    }
+    boolean display = LoongSimBoardCatalog.isDisplay(id);
+    boolean otherDisplay = LoongSimBoardCatalog.isDisplay(otherId);
+    if (display || otherDisplay) {
+      if (display && otherDisplay) {
+        return LoongSimBoardCatalog.displayPosition(id) == LoongSimBoardCatalog.displayPosition(otherId)
+            && (LoongSimBoardCatalog.displaySegment(id) < 0
+                || LoongSimBoardCatalog.displaySegment(otherId) < 0);
+      }
+      String raw = display ? otherId : id;
+      return raw.equals("num_a_g") || raw.startsWith("num_a_g[")
+          || raw.equals("num_csn") || raw.startsWith("num_csn[");
+    }
     boolean thisAggregate = id.indexOf('[') < 0;
     boolean otherAggregate = otherId.indexOf('[') < 0;
     if (!thisAggregate && !otherAggregate) return false;

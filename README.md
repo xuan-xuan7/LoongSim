@@ -15,7 +15,29 @@ LoongSim 是一套统一的数字电路设计、仿真与 FPGA 实现环境。�
 正式发布时补充版本、日期、Release 链接和升级注意事项。源码同步不代表安装包已更新，
 同版本重新打包也应记录日期和对应源码提交。
 
-### 未发布（2026-10-19）
+### 1.1.0（2026-11-02，master 完整版，Windows）
+
+[下载 Release](https://github.com/xuan-xuan7/LoongSim/releases/tag/v1.1.0)
+
+- Windows x64 接入 LoongSim 私有 FPGA 工具：Yosys/ABC、openXC7 布局布线与位流工具、XC7A200T 数据库、Python 和 openFPGALoader；锁定配套版本并校验 SHA256。
+- 从“FPGA 实现”进入工作台，依次完成端口映射、生成位流并下载；综合和布局布线在生成位流时自动完成。
+- 增加自动下载器识别、目标芯片检查、日志和生成结果校验；重新生成或修改工程后不能下载旧位流。下载使用 SRAM，不写入 Flash。
+- 修复真实工具验证暴露的 Yosys 顶层传参和时钟封装语法问题；适配 openXC7 XDC，保留 100 MHz 时钟目标。
+- 按原理图和引脚表核对 55 个资源引脚；保留总线 ID，记录与板级编号的对应关系，暂不开放未经资料验证的旧 LCD 数据总线。
+- **端口名称与位置**：映射窗口保留电路中的中文标签；资源分两级选择，显示 SW0～SW7 等实物名称、左起位置和单个资源红框，不再要求辨认内部总线编号。
+- **多位端口**：可以拆分后逐位分配到开关或 LED，保留每位原始标签，并检查缺失、重复占用和输入输出方向。
+- **数码管**：保留 a～g 独立段选及7位整组段选，同时提供4位数值的0～F显示；显示位置由界面选择，LoongSim 处理选位与刷新。
+- **矩阵键盘**：提供4×4具体按键，按下为1、松开为0；后台扫描、防抖并抑制有歧义的矩形串键组合。矩阵区使用明确的4×4位置示意。
+- **图标与启动界面**：主窗口、FPGA窗口、启动画面和 Windows 安装启动器统一使用 LoongSim 龙芯图标。
+- **仿真与实物一致性**：修复单色 LED 低电平适配，已在实验箱上确认门窗报警电路的开关组合符合仿真逻辑。
+- **验证**：自动化测试、真实 Windows 综合和位流生成通过；段选128种组合、0～F、16个矩阵按键、防抖、120种双键组合及串键抑制通过仿真。新增数码管和矩阵键盘适配尚未完成实物显示/按键验证。
+- **安装包**：Windows x64 EXE 安装包内置 Java 与完整 FPGA 工具链，安装后通过桌面或开始菜单运行。版本统一为1.1.0，本次仍为未签名包。
+
+此版本来自 `master`，包含 FPGA 全流程；`v1.0.1-logisim-only` 保留为纯电路编辑与仿真版本。
+升级前保存电路并关闭旧版程序。实验箱下载仍需相应 USB 驱动和配套下载器初始化文件，说明见
+[Windows FPGA 集成](toolchain/WINDOWS_FPGA_FLOW.md)。
+
+### 源码同步（2026-10-19）
 
 - 将 `logisim-only` 的 Logisim 改动同步到 `master`，同步来源为 `5b47d457`；应用核心版本同步为 1.0.1。
 - 同步中文文件名和中文目录支持：“保存”“另存为”不依赖界面语言，支持空格、短横线和自动补全 `.circ` 后缀，继续检查系统非法字符与保留设备名。
@@ -42,7 +64,7 @@ LoongSim 是一套统一的数字电路设计、仿真与 FPGA 实现环境。�
 
 ### 1.0.0（首次发布于 2026-10-09，Logisim-only 发布）
 
-[历史 Release](https://github.com/xuan-xuan7/LoongSim/releases/tag/v1.0.0-logisim-only)
+[历史源码标签](https://github.com/xuan-xuan7/LoongSim/tree/v1.0.0-logisim-only)（旧 Release 安装包已移除）
 
 - 提供 LoongSim 电路编辑、仿真、可配置位宽 ALU，以及 Windows 运行包和内置 Java 安装包。
 - `logisim-only` 从完整版本移除 LoongSim 自定义 FPGA 界面、板卡资源和工具链。
@@ -53,20 +75,28 @@ LoongSim 是一套统一的数字电路设计、仿真与 FPGA 实现环境。�
 
 - `logisim/`：Java/Swing 电路编辑器、仿真器、HDL 生成器和 FPGA 界面。
 - `fpga/yosys-runtime/`：已编译的 LoongArch Yosys、Berkeley ABC 和 Yosys 技术库。
+- `fpga/runtime/windows-x64/`：由脚本安装的 Windows 私有工具与数据库（不提交二进制到 Git）。
 - `fpga/boards/`：板卡约束模板和资源说明。
-- 后续 `nextpnr`、Project X-Ray、openFPGALoader 也以各自的 `*-runtime/` 编译产物形式加入。
+- Windows 的 nextpnr、Project X-Ray、Python 与 openFPGALoader 均纳入上述私有工具目录。
 - `toolchain/`：LoongSim 自己的工具链编排、板卡配置和说明文档。
 
 ## 当前状态
 
-电路编辑、仿真和 Verilog 导出可以使用。FPGA 工作台已经接通三个阶段：
+电路编辑、仿真和 Verilog 导出可以使用。Windows FPGA 工作台已贯通至真实实验箱下载：
 生成 Verilog 工程后进入板卡端口映射窗口；用户确认兼容的板卡资源后，LoongSim 才生成当前电路专属 `constraints.xdc`。
 生成时会先选择一个工程目录；Verilog、板卡模板、XDC、映射清单和后续 Yosys 输出都会保存在这个目录中。
-随后调用项目内置的 LoongArch Yosys 0.8 + Berkeley ABC。端口映射由方向、位宽和资源占用规则约束，不能把输入端口映射到 LED 等输出资源。
-nextpnr、芯片数据库、位流和烧录阶段仍在后续接入。
+端口映射由方向、位宽和资源占用规则约束，不能把输入端口映射到 LED 等输出资源。
+Windows 工作台依次提供“端口映射”“生成位流”“下载到 FPGA”三个操作；生成位流时自动调用
+内置综合、布局布线和位流生成工具，无需分别操作这些阶段。
+2026-10-29 已通过“开关 → 非门 → LED”实机验证：从 LoongSim 界面生成位流、自动识别
+Xilinx USB 下载器、下载到 XC7A200T，并确认板上 SW0 控制 LED1 亮灭。
+LoongArch 保留原有 Yosys 0.8 + Berkeley ABC 综合；其后续实现工具尚未接入。
+
+Windows 的构建、完整应用打包、工具版本及验证说明见 [Windows FPGA 集成](toolchain/WINDOWS_FPGA_FLOW.md)。
 
 当前 FPGA 导出会让 `sources.list`、`top-module.txt` 和 `constraints.xdc` 严格对应同一个实现顶层。
-没有派生时钟时，电路模块本身就是实现顶层；使用 Logisim `Clock` 时，LoongSim 会自动生成时钟分频器、
+所有工程都有独立的板卡接口顶层，自动适配单色 LED 的低电平点亮，使灯光与仿真一致。
+使用 Logisim `Clock` 时，LoongSim 还会自动生成时钟分频器、
 时钟总线和一个顶层封装，学生只需要把封装的 `FPGA_GlobalClock` 映射到板卡专用 `clk` 资源。
 
 ## 运行桌面应用

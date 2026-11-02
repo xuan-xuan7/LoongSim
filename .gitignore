@@ -21,6 +21,7 @@ fpga/yosys/build/
 bootstrap/work/
 local/
 dist/
+fpga/runtime/
 
 # Large reference installer kept outside Git history
 fpga/loongblock_*.deb

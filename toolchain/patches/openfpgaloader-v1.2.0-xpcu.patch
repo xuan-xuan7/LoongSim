@@ -1,0 +1,100 @@
+diff --git a/src/cable.hpp b/src/cable.hpp
+index be163ef..c6cfbbf 100644
+--- a/src/cable.hpp
++++ b/src/cable.hpp
+@@ -141,6 +141,8 @@ static std::map <std::string, cable_t> cable_list = {
+ 	{"usb-blasterII_1",    CABLE_DEF(MODE_USBBLASTER, 0x09Fb, 0x6010                   )},
+ 	{"usb-blasterIII",     FTDI_SER(0x09fb, 0x6022, FTDI_INTF_A, 0x08, 0x3B, 0x58, 0xb0)},
+ 	{"xilinxPlatformCableUsb",     CABLE_DEF(MODE_XPCU, 0x03fd, 0x0013                 )},
++	{"xilinxPlatformCableUsb_legacy", CABLE_DEF(MODE_XPCU, 0x03fd, 0x0007              )},
++	{"xilinxPlatformCableUsb_ready", CABLE_DEF(MODE_XPCU, 0x03fd, 0x0008               )},
+ 	{"xilinxPlatformCableUsb_alt", CABLE_DEF(MODE_XPCU, 0x03fd, 0x000D                 )},
+ 	{"xvc-client",         CABLE_DEF(MODE_XVC_CLIENT, 0x0000, 0x0000                   )},
+ #ifdef ENABLE_LIBGPIOD
+diff --git a/src/fx2_ll.cpp b/src/fx2_ll.cpp
+index afd911e..97ac115 100644
+--- a/src/fx2_ll.cpp
++++ b/src/fx2_ll.cpp
+@@ -20,6 +20,18 @@
+ #define FX2_GCR_CPUCS          0xe600
+ #define FX2_GCR_CPUCS_8051_RES (1 << 0)
+ 
++static bool xilinx_firmware_running(libusb_device_handle *handle)
++{
++	uint8_t constant[2] = {0, 0};
++	uint8_t version[2] = {0, 0};
++	int rc = libusb_control_transfer(handle, 0xc0, 0xb0,
++		0x40, 0, constant, 2, 1000);
++	int rv = libusb_control_transfer(handle, 0xc0, 0xb0,
++		0x50, 0, version, 2, 1000);
++	return rc == 2 && constant[0] == 0xb5 && constant[1] == 0x03
++		&& rv == 2 && (version[0] != 0 || version[1] != 0);
++}
++
+ FX2_ll::FX2_ll(uint16_t uninit_vid, uint16_t uninit_pid,
+ 		uint16_t vid, uint16_t pid, const std::string &firmware_path)
+ {
+@@ -42,6 +54,19 @@ FX2_ll::FX2_ll(uint16_t uninit_vid, uint16_t uninit_pid,
+ 				throw std::runtime_error("claim interface failed");
+ 			}
+ 			/* load firmware */
++			// Some compatible Xilinx cables retain 03fd:0007 even while their
++			// JTAG firmware is running. Validate the protocol before loading RAM.
++			if (vid == 0x03fd && pid == 0x0008 && uninit_vid == 0x03fd) {
++				if (xilinx_firmware_running(dev_handle)) {
++					printInfo("Xilinx cable firmware already running (retained USB PID)");
++					return;
++				}
++			}
++			if (firmware_path.empty()) {
++				close();
++				libusb_exit(usb_ctx);
++				throw std::runtime_error("Xilinx cable requires initialization; supply its official FX2 firmware with --probe-firmware");
++			}
+ 			if (!load_firmware(firmware_path)) {
+ 				libusb_close(dev_handle);
+ 				libusb_exit(usb_ctx);
+@@ -61,6 +86,14 @@ FX2_ll::FX2_ll(uint16_t uninit_vid, uint16_t uninit_pid,
+ 	do {
+ 		dev_handle = libusb_open_device_with_vid_pid(usb_ctx,
+ 				vid, pid);
++		// Compatible cables may also retain the boot PID after a RAM load.
++		if (!dev_handle && reenum && vid == 0x03fd && pid == 0x0008 && uninit_vid == 0x03fd) {
++			dev_handle = libusb_open_device_with_vid_pid(usb_ctx, uninit_vid, uninit_pid);
++			if (dev_handle && !xilinx_firmware_running(dev_handle)) {
++				libusb_close(dev_handle);
++				dev_handle = nullptr;
++			}
++		}
+ 		timeout--;
+ 		progress.display(100-timeout);
+ 		if (!dev_handle)
+diff --git a/src/xilinxPlatformCableUSB.cpp b/src/xilinxPlatformCableUSB.cpp
+index 817369c..e146ffa 100644
+--- a/src/xilinxPlatformCableUSB.cpp
++++ b/src/xilinxPlatformCableUSB.cpp
+@@ -57,14 +57,7 @@ XilinxPlatformCableUSB::XilinxPlatformCableUSB(const uint16_t vid,
+ 	 * 2/ from Vivado install directory
+ 	 * 3/ from ISE install directory
+ 	 */
+-	if (firmware_path.empty() && strlen(ISE_DIR) == 0 && strlen(VIVADO_DIR) == 0) {
+-		printError("missing FX2 firmware");
+-		printError("use --probe-firmware with something");
+-		printError("like /opt/Xilinx/14.7/ISE_DS/ISE/bin/lin64/xusb_xp2.hex for ISE");
+-		printError("or   /opt/Xilinx/Vivado/VERSION/data/xicom/xusb_xp2.hex for Vivado");
+-		printError("Or use -DISE_DIR=/opt/Xilinx/14.7 / -DVIVADO_DIR=/opt/Xilinx/Vivado/VERSION at build time");
+-		throw std::runtime_error("xilinxPlatformCableUSB: missing firmware");
+-	}
++	// FX2_ll requires firmware only if the cable is not already running it.
+ 
+ 	/* Extract firmware according to possibilities */
+ 	if (!firmware_path.empty())
+@@ -74,7 +67,7 @@ XilinxPlatformCableUSB::XilinxPlatformCableUSB(const uint16_t vid,
+ 	else if (strlen(ISE_DIR) > 0)
+ 		firmware_file = ISE_DIR "/ISE_DS/ISE/bin/lin64/";
+ 
+-	if (firmware_path.empty()) {
++	if (firmware_path.empty() && !firmware_file.empty()) {
+ 		if (pid == 0x0d)
+ 			firmware_file += "xusb_emb.hex";
+ 		else

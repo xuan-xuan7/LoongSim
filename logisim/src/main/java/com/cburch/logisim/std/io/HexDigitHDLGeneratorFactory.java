@@ -30,6 +30,7 @@ package com.cburch.logisim.std.io;
 
 import com.cburch.logisim.data.AttributeSet;
 import com.cburch.logisim.fpga.designrulecheck.Netlist;
+import com.cburch.logisim.fpga.designrulecheck.CorrectLabel;
 import com.cburch.logisim.fpga.designrulecheck.NetlistComponent;
 import com.cburch.logisim.fpga.gui.FPGAReport;
 import com.cburch.logisim.fpga.hdlgenerator.AbstractHDLGeneratorFactory;
@@ -92,7 +93,7 @@ public class HexDigitHDLGeneratorFactory extends AbstractHDLGeneratorFactory {
                        (ComponentInfo.GetLocalBubbleOutputStartId() + 6)+":"+
                        ComponentInfo.GetLocalBubbleOutputStartId()+"]";
       if (ComponentInfo.EndIsConnected(HexDigit.HEX)) {
-        String RegName = "s_"+Label+"_reg";
+        String RegName = "s_" + CorrectLabel.getCorrectLabel(Label) + "_" + ComponentId + "_reg";
         Contents.add(" ");
         Contents.add("   reg[6:0] "+RegName+";");
         Contents.add("   always @(*)");
