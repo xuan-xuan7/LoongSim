@@ -3,7 +3,8 @@ param(
     [string]$WixHome,
     [string]$JarPath,
     [string]$AppImagePath,
-    [string]$OutputDirectory
+    [string]$OutputDirectory,
+    [string]$WorkDirectory
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -39,7 +40,11 @@ $jar = Join-Path $AppImagePath "app/LoongSim-$jarVersion-all.jar"
 if ((Get-FileHash -LiteralPath $jar -Algorithm SHA256).Hash.ToLowerInvariant() -ne $buildInfo.jarSha256) {
     throw 'Packaged application JAR does not match its build record.'
 }
-$work = Join-Path $repo ('local/fpga-msi/' + [Guid]::NewGuid().ToString('N').Substring(0,8))
+# WiX 3 still resolves source files through MAX_PATH-limited APIs. jpackage adds
+# images/win-msi.image/LoongSim/... below this root, so use a short, isolated stage.
+if (-not $WorkDirectory) { $WorkDirectory = Join-Path ($env:SystemDrive + '/LS') ([Guid]::NewGuid().ToString('N').Substring(0,8)) }
+$work = [IO.Path]::GetFullPath($WorkDirectory)
+if (Test-Path -LiteralPath $work) { throw 'Installer staging directory already exists; select a new -WorkDirectory.' }
 $resources = Join-Path $work 'resources'
 $installer = Join-Path $work 'installer'
 New-Item -ItemType Directory -Force $resources,$installer | Out-Null

@@ -65,6 +65,8 @@ Windows 10/11 x64，不依赖 WSL、Vivado 或系统 Python：
 默认发布目录是 `dist/LoongSim-版本号/`，文件名带 `master` 与 `unsigned`，并附 SHA256 和构建清单。
 工具链按多个嵌入式 CAB 打包，避免单个 CAB 的体积限制；与旧 LoongSim 安装包保持升级标识兼容。
 已有应用目录可以通过 `-AppImagePath` 传入，避免重新复制工具链。不能使用 `logisim-only` 的纯 Logisim 包代替。
+WiX 3 对源文件仍有路径长度限制，安装包构建默认使用系统盘 `LS/随机目录` 作为临时目录；
+可用 `-WorkDirectory` 指定另一个尚不存在的短路径。构建失败时保留该目录供查看日志。
 
 运行时优先查找应用目录，源码运行时查找项目私有工具目录。开发时可用
 `LOONGSIM_FPGA_RUNTIME` 环境变量或 `-Dloongsim.fpga.runtime=...` 指定另一个完整运行时。
