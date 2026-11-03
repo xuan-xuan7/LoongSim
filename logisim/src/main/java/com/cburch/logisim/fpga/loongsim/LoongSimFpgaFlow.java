@@ -1,6 +1,7 @@
 package com.cburch.logisim.fpga.loongsim;
 
 import com.cburch.logisim.circuit.Circuit;
+import com.cburch.logisim.circuit.SubcircuitFactory;
 import com.cburch.logisim.comp.Component;
 import com.cburch.logisim.fpga.designrulecheck.CorrectLabel;
 import com.cburch.logisim.fpga.designrulecheck.Netlist;
@@ -70,6 +71,32 @@ public final class LoongSimFpgaFlow {
     }
   }
 
+  private static void checkComponentSupport(Circuit circuit, String path, Set<Circuit> visited,
+      List<String> unsupported) {
+    if (!visited.add(circuit)) return;
+    for (Component component : circuit.getNonWires()) {
+      if (component.getFactory() instanceof SubcircuitFactory) {
+        Circuit child = ((SubcircuitFactory) component.getFactory()).getSubcircuit();
+        checkComponentSupport(child, path + "/" + child.getName(), visited, unsupported);
+      } else {
+        var attributes = component.getAttributeSet();
+        boolean latch = attributes.containsAttribute(StdAttr.TRIGGER)
+            && (attributes.getValue(StdAttr.TRIGGER) == StdAttr.TRIG_HIGH
+                || attributes.getValue(StdAttr.TRIGGER) == StdAttr.TRIG_LOW);
+        boolean supported = component.getFactory().HDLSupportedComponent(
+            HDLGeneratorFactory.VERILOG, attributes);
+        if (supported && !latch) continue;
+        String label = component.getAttributeSet().containsAttribute(StdAttr.LABEL)
+            ? component.getAttributeSet().getValue(StdAttr.LABEL) : "";
+        unsupported.add(path + "：" + component.getFactory().getDisplayName()
+            + "（" + component.getFactory().getName() + "）"
+            + (label == null || label.isBlank() ? "" : "，标签：" + label)
+            + "，位置：" + component.getLocation()
+            + (latch ? "；当前 A7 布局布线工具不支持电平触发的锁存模式，请改用上升沿或下降沿触发" : ""));
+      }
+    }
+  }
+
   public ExportResult generateVerilog(Project project, Circuit circuit, Path outputDirectory,
       Consumer<String> sink)
       throws IOException {
@@ -80,6 +107,12 @@ public final class LoongSimFpgaFlow {
     if (circuitName.isEmpty()) circuitName = "main";
     if (outputDirectory == null) {
       throw new IOException("必须先选择 Verilog 工程保存目录");
+    }
+    List<String> unsupported = new ArrayList<>();
+    checkComponentSupport(circuit, circuit.getName(), new HashSet<>(), unsupported);
+    if (!unsupported.isEmpty()) {
+      throw new IOException("以下组件或配置尚不支持当前 A7 FPGA 实现流程：\n"
+          + String.join("\n", unsupported));
     }
     Path boardXdc = findBoardXdc();
     if (boardXdc == null) {

@@ -4,7 +4,8 @@ param(
     [string]$JarPath,
     [string]$AppImagePath,
     [string]$OutputDirectory,
-    [string]$WorkDirectory
+    [string]$WorkDirectory,
+    [ValidateRange(0,65535)][int]$InstallerRevision = 0
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -12,6 +13,7 @@ $repo = Split-Path $PSScriptRoot -Parent
 $versionLine = Get-Content (Join-Path $repo 'logisim/gradle.properties') | Where-Object { $_ -match '^version\s*=' }
 $jarVersion = ($versionLine -split '=',2)[1].Trim()
 $appVersion = $jarVersion -replace '-.*$',''
+$bundleVersion = if ($InstallerRevision -gt 0) { "$appVersion.$InstallerRevision" } else { $appVersion }
 if (-not $Java17Home) {
     $Java17Home = (Get-ChildItem (Join-Path $repo 'local/tools/temurin17') -Directory | Select-Object -First 1).FullName
 }
@@ -59,6 +61,16 @@ $template = Get-Content (Join-Path $work 'classes/jdk/jpackage/internal/resource
 $media = '<Media Id="1" Cabinet="Data.cab" EmbedCab="yes" />'
 if (-not $template.Contains($media)) { throw 'Unexpected jpackage WiX template; review cabinet configuration.' }
 $template = $template.Replace($media, '<MediaTemplate EmbedCab="yes" MaximumUncompressedMediaSize="500" CompressionLevel="high" />')
+if ($InstallerRevision -gt 0) {
+    # MSI compares three version fields. A refreshed release must replace an
+    # equal-version product, while Burn uses the fourth field to order bundles.
+    $maximum = 'IncludeMaximum="$(var.JpUpgradeVersionOnlyDetectUpgrade)"'
+    $minimum = 'IncludeMinimum="$(var.JpUpgradeVersionOnlyDetectDowngrade)"'
+    if (!$template.Contains($maximum) -or !$template.Contains($minimum)) {
+        throw 'Unexpected jpackage upgrade template; review same-version replacement.'
+    }
+    $template = $template.Replace($maximum, 'IncludeMaximum="yes"').Replace($minimum, 'IncludeMinimum="no"')
+}
 [IO.File]::WriteAllText((Join-Path $resources 'main.wxs'),$template,[Text.UTF8Encoding]::new($false))
 $oldPath = $env:PATH
 try {
@@ -81,7 +93,7 @@ $bundleSource = Join-Path $work 'bundle.wxs'
 $bundle = @"
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:bal="http://schemas.microsoft.com/wix/BalExtension">
-  <Bundle Name="LoongSim" Version="$appVersion" Manufacturer="LoongSim" UpgradeCode="fcd641dc-cb49-45ab-a741-165c31503f6b" IconSourceFile="$iconXml">
+  <Bundle Name="LoongSim" Version="$bundleVersion" Manufacturer="LoongSim" UpgradeCode="fcd641dc-cb49-45ab-a741-165c31503f6b" IconSourceFile="$iconXml">
     <BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.HyperlinkLicense">
       <bal:WixStandardBootstrapperApplication LicenseUrl="https://github.com/xuan-xuan7/LoongSim/blob/master/logisim/LICENSE.md" />
     </BootstrapperApplicationRef>
@@ -101,11 +113,13 @@ foreach ($file in @($exe,$msi)) {
 }
 $info = [ordered]@{
     platform='windows-x64'; version=$appVersion; branch='master'; signed=$false
+    installerRevision=$InstallerRevision; bundleVersion=$bundleVersion
     sourceCommit=$buildInfo.sourceCommit; uncommittedChanges=$buildInfo.uncommittedChanges
     jarSha256=$buildInfo.jarSha256; tools=$buildInfo.tools; xilinxCableHelper=$buildInfo.xilinxCableHelper
     installers=@(@($exe,$msi) | ForEach-Object {
         [ordered]@{name=(Split-Path $_ -Leaf); size=(Get-Item -LiteralPath $_).Length; sha256=(Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant()}
     })
 }
+if ($buildInfo.PSObject.Properties.Name -contains 'runtimeProfile') { $info.runtimeProfile = $buildInfo.runtimeProfile }
 [IO.File]::WriteAllText((Join-Path $OutputDirectory 'LoongSim-windows-build-info.json'),($info | ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
 Get-Item -LiteralPath $exe,$msi | Select-Object FullName,Length

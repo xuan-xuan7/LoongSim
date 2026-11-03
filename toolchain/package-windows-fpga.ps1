@@ -34,13 +34,15 @@ New-Item -ItemType Directory -Force $inputDirectory, (Join-Path $inputDirectory 
 Copy-Item -LiteralPath $JarPath -Destination $inputDirectory
 Copy-Item -LiteralPath (Join-Path $repo 'fpga/boards') -Destination (Join-Path $inputDirectory 'fpga/boards') -Recurse
 Copy-Item -LiteralPath (Join-Path $repo 'fpga/examples') -Destination (Join-Path $inputDirectory 'fpga/examples') -Recurse
-Copy-Item -LiteralPath $runtime -Destination (Join-Path $inputDirectory 'fpga/runtime/windows-x64') -Recurse
+$runtimeProfile = & (Join-Path $PSScriptRoot 'copy-windows-a7-runtime.ps1') `
+    -SourceDirectory $runtime -DestinationDirectory (Join-Path $inputDirectory 'fpga/runtime/windows-x64')
 $info = @{
     sourceCommit=(git -C $repo rev-parse HEAD)
     uncommittedChanges=[bool](git -C $repo status --porcelain --untracked-files=normal)
     jarSha256=(Get-FileHash -LiteralPath $JarPath -Algorithm SHA256).Hash.ToLowerInvariant()
     version=$appVersion
     tools=(Get-Content (Join-Path $PSScriptRoot 'windows-tools.lock.json') -Raw | ConvertFrom-Json)
+    runtimeProfile=$runtimeProfile
     xilinxCableHelper=(Get-Content (Join-Path $runtime 'loongsim/BUILD-INFO.json') -Raw | ConvertFrom-Json)
 }
 $info | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $inputDirectory 'LoongSim-build-info.json') -Encoding utf8

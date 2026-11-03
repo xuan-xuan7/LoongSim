@@ -19,11 +19,14 @@ macOS / Linux 可在 `logisim/` 中执行 `./gradlew run`。电路编辑器可�
 
 生成的 JAR 位于 `logisim/build/libs/`。Windows 应用和安装包通过 JDK 17 的 jpackage 生成，MSI / EXE 安装包还需 WiX 3.14；具体步骤见 [Windows FPGA 集成](windows-fpga.md)。
 
+普通 `test` 默认跳过原生 FPGA 工具测试。要验证实际电路、映射、综合前后逻辑与位流生成，运行 `toolchain/test-windows-fpga.ps1`，具体依赖、报告及范围见[测试说明](../testing/README.md)。
+
 ## 技术资料
 
 - [项目结构](project-structure.md)：各目录的职责。
 - [FPGA 后端与板卡适配](fpga-backend.md)：端口映射、板卡接口和工程输出。
 - [工具链概览](toolchain.md)：内部工具和平台限制。
+- [手动检查更新](updates.md)：软件内更新入口、下载校验及 Release 发布要求。
 - [流程与实现状态](architecture.md)：HDL、XDC、综合和实现顶层的关系。
 - [手工 Xilinx 7 系列流程](manual-xc7-flow.md)：手动排查和构建参考。
 - [板卡引脚核对](../../fpga/boards/loongson-a7/HARDWARE_NOTES.md)：实验箱资料和已确认的引脚。

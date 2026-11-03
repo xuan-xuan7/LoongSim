@@ -1,0 +1,4 @@
+LoongSim uses Google Gson 2.15.0 to read GitHub release metadata.
+Copyright 2008 Google Inc.
+Licensed under the Apache License, Version 2.0; see Gson-LICENSE.txt in this directory.
+Source: https://github.com/google/gson/tree/gson-parent-2.15.0

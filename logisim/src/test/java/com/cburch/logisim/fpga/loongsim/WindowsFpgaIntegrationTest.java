@@ -57,7 +57,17 @@ public class WindowsFpgaIntegrationTest {
 
   private static void simulateGuard(FpgaToolchain tools, Path output, java.util.List<Path> sources, String stage)
       throws Exception {
-    Path bin = tools.yosys().getParent();
+    // Icarus checks the exported logic in development; it is not an application dependency.
+    // Synthesis, place/route and bitstream generation still use the runtime under test.
+    String simulator = System.getenv("LOONGSIM_FPGA_TEST_SIMULATOR");
+    Path bin = simulator == null || simulator.isBlank() ? tools.yosys().getParent()
+        : WindowsNativePath.resolve(Path.of(simulator).toAbsolutePath().normalize()).resolve("bin");
+    for (String executable : java.util.List.of("iverilog.exe", "vvp.exe")) {
+      if (!Files.isRegularFile(bin.resolve(executable))) {
+        throw new java.io.IOException("Icarus test tools are missing; set LOONGSIM_FPGA_TEST_SIMULATOR "
+            + "to the development oss-cad-suite directory: " + bin.resolve(executable));
+      }
+    }
     java.util.List<String> command = new java.util.ArrayList<>(java.util.List.of(
         bin.resolve("iverilog.exe").toString(), "-B", bin.resolve("../lib/ivl").normalize().toString(),
         "-g2012", "-s", "tb", "-o", "guard-" + stage + ".vvp", "truth-table.v"));

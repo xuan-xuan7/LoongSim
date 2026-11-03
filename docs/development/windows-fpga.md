@@ -31,8 +31,17 @@ Windows 10/11 x64，不依赖 WSL、Vivado 或系统 Python：
 | Xilinx 下载器兼容助手 | openFPGALoader v1.2.0 + 项目补丁 | 支持 03fd:0007/0008、自动初始化和同编号重连 |
 
 版本按 openXC7 的配套要求固定，不能只替换其中一个工具。下载地址、SHA256、版本和
-器件在 `windows-tools.lock.json` 中记录。原始工具包、动态库、技术库、许可证和构建信息
-一并保留；二进制放在忽略目录 `fpga/runtime/windows-x64/`，不提交到 Git。
+器件在 `windows-tools.lock.json` 中记录。构建机保留原始工具目录、动态库、技术库、许可证和构建信息；
+二进制放在忽略目录 `fpga/runtime/windows-x64/`，不提交到 Git。
+Windows 应用打包时由 `copy-windows-a7-runtime.ps1` 排除其他 FPGA 的专用工具和数据库：
+保留 XC7A200T 布局布线数据库、FBG676/-1 封装数据、Artix 共用位流数据及映射表，
+移除其他 Xilinx 器件数据和 iCE40、ECP5、Gowin 等工具、数据库、综合技术库。
+打包只保留流程直接调用的 Yosys、ABC、nextpnr-xilinx、xc7frames2bit、fasm2frames、Python
+及两个 openFPGALoader 下载工具，排除未调用的独立仿真器、形式验证/求解工具、波形查看器、
+其他下载工具、位流检查/修改工具及其专用后端、资源、示例和未启用的 HDL 前端插件。
+Java、Python 运行时、位流转换所需模块、共用动态库、许可证及原始开发工具目录保持原样。
+应用中 `fpga/runtime/windows-x64/loongsim/A7-PACKAGING.json` 记录规则摘要、排除文件及体积；
+应用和安装包构建清单也记录该摘要，方便核对采用的打包配置。
 
 ## 开发与打包
 
@@ -53,12 +62,14 @@ Windows 10/11 x64，不依赖 WSL、Vivado 或系统 Python：
 # 使用 JDK 11 构建 LoongSim
 .\logisim\gradlew.bat -p logisim --no-daemon test shadowJar
 
-# 使用 JDK 17 生成内置 Java、全部工具及板卡资料的 Windows 应用目录
+# 使用 JDK 17 生成内置 Java、A7 工具及板卡资料的 Windows 应用目录
 .\toolchain\package-windows-fpga.ps1 -Java17Home 'JDK17路径'
 
 # 生成 Windows EXE 安装向导与 MSI（需要 WiX 3.14）
 .\toolchain\package-windows-fpga-installer.ps1 -Java17Home 'JDK17路径' -WixHome 'WiX目录'
 ```
+
+同版本重新打包时可加 `-InstallerRevision 1`：公开版本号不变，EXE 的内部版本增加第四段，并在 MSI 中启用同版本替换。后续同版本修订须递增该数字；正常发布更高版本时可恢复默认值0。
 
 最后一个脚本输出的目录可以直接双击 `LoongSim.exe` 运行。Java 和 FPGA 工具均在应用目录
 内部，无需另行安装。安装包脚本封装同样的完整目录，输出带桌面及开始菜单快捷方式的 EXE 和 MSI。
@@ -92,6 +103,10 @@ Windows 下会通过系统短路径机制适配上游工具的安装目录限制
 
 ```powershell
 $env:LOONGSIM_RUN_FPGA_INTEGRATION='1'
+# Icarus 仅供开发测试，不随精简安装包分发。
+$env:LOONGSIM_FPGA_TEST_SIMULATOR=(Resolve-Path 'fpga/runtime/windows-x64/oss-cad-suite').Path
+# 验证已打包的工具时，将此变量设为应用内 app/fpga/runtime/windows-x64 的绝对路径。
+# $env:LOONGSIM_FPGA_RUNTIME='精简应用目录/LoongSim/app/fpga/runtime/windows-x64'
 .\logisim\gradlew.bat -p logisim --no-daemon cleanTest test --tests '*WindowsFpgaIntegrationTest'
 ```
 

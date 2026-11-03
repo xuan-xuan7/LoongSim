@@ -69,7 +69,7 @@ public class TFlipFlop extends AbstractFlipFlop {
     public ArrayList<String> GetUpdateLogic(String HDLType) {
       ArrayList<String> Contents = new ArrayList<String>();
       if (HDLType.endsWith(VHDL)) Contents.add("   s_next_state <= s_current_state_reg XOR T;");
-      else Contents.add("   assign s_next_state = s_current_state_reg^T;");
+      else Contents.add("   assign s_next_state = s_current_state_reg[ActiveLevel]^T;");
       return Contents;
     }
   }

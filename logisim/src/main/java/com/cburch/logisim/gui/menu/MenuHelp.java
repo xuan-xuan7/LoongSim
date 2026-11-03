@@ -33,6 +33,7 @@ import static com.cburch.logisim.gui.Strings.S;
 import com.cburch.logisim.gui.generic.LFrame;
 import com.cburch.logisim.gui.generic.OptionPane;
 import com.cburch.logisim.gui.start.About;
+import com.cburch.logisim.gui.start.UpdateDialog;
 import com.cburch.logisim.util.MacCompatibility;
 import java.awt.Dimension;
 import java.awt.Toolkit;
@@ -53,6 +54,7 @@ class MenuHelp extends JMenu implements ActionListener {
   private JMenuItem guide = new JMenuItem();
   private JMenuItem library = new JMenuItem();
   private JMenuItem about = new JMenuItem();
+  private JMenuItem checkUpdates = new JMenuItem();
   private HelpSet helpSet;
   private String helpSetUrl = "";
   private JHelp helpComponent;
@@ -65,10 +67,13 @@ class MenuHelp extends JMenu implements ActionListener {
     guide.addActionListener(this);
     library.addActionListener(this);
     about.addActionListener(this);
+    checkUpdates.addActionListener(this);
 
     add(tutorial);
     add(guide);
     add(library);
+    addSeparator();
+    add(checkUpdates);
     if (!MacCompatibility.isAboutAutomaticallyPresent()) {
       addSeparator();
       add(about);
@@ -85,6 +90,8 @@ class MenuHelp extends JMenu implements ActionListener {
       showHelp("libs");
     } else if (src == about) {
       About.showAboutDialog(menubar.getParentWindow());
+    } else if (src == checkUpdates) {
+      UpdateDialog.show(menubar.getParentWindow());
     }
   }
 
@@ -143,6 +150,7 @@ class MenuHelp extends JMenu implements ActionListener {
     guide.setText(S.get("helpGuideItem"));
     library.setText(S.get("helpLibraryItem"));
     about.setText(S.get("helpAboutItem"));
+    checkUpdates.setText(S.get("helpCheckUpdatesItem"));
     if (helpFrame != null) {
       helpFrame.setLocale(Locale.getDefault());
       loadBroker();

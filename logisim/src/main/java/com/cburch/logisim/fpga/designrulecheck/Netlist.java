@@ -461,7 +461,7 @@ public class Netlist implements CircuitListener {
             DRCStatus |= DRC_ERROR;
           }
           if (!CorrectLabel.IsCorrectLabel(
-              comp.getFactory().getName(),
+              comp.getFactory().getHDLName(comp.getAttributeSet()),
               HDLIdentifier,
               S.fmt("FoundBadComponent", comp.getFactory().getName(), MyCircuit.getName()),
               Reporter)) {

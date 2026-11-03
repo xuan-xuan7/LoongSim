@@ -8,6 +8,7 @@
 | 从源码运行、构建和打包 | [开发文档](development/README.md) |
 | 工具版本、下载器和验证记录 | [Windows FPGA 集成](development/windows-fpga.md) |
 | 端口映射、数码管和矩阵键盘规则 | [FPGA 后端与板卡适配](development/fpga-backend.md) |
+| 电路到 FPGA 怎么测试、发现了什么问题 | [测试说明与实测记录](testing/README.md) |
 | 目录结构与工程输出文件 | [项目结构](development/project-structure.md) |
 | 旧 Loongnix 构建资料 | [历史归档](archive/README.md) |
 

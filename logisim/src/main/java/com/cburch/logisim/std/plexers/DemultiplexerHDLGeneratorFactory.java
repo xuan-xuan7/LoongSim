@@ -83,7 +83,7 @@ public class DemultiplexerHDLGeneratorFactory extends AbstractHDLGeneratorFactor
             "   assign DemuxOut_"
                 + Integer.toString(i)
                 + Space
-                + " = (Enable&(sel == "
+                + " = (Enable&(Sel == "
                 + binValue
                 + " )) ? DemuxIn : 0;");
       }

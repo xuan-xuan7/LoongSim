@@ -216,7 +216,7 @@ public class ShifterHDLGeneratorFactory extends AbstractHDLGeneratorFactory {
       Contents.add("                              DataA[" + Integer.toString(NrOfBits - 1) + "] :");
       Contents.add("                              (" + ShiftModeStr + "== 4) ? DataA[0] : 0;");
       Contents.add("");
-      Contents.add("   assign s_stage_0_result  = (ShiftAmount == 0) ? DataA :");
+      Contents.add("   assign s_stage_0_result  = (" + (NrOfBits > 2 ? "ShiftAmount[0]" : "ShiftAmount") + " == 0) ? DataA :");
       Contents.add(
           "                              (("
               + ShiftModeStr

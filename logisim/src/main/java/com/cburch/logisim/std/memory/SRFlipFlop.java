@@ -72,7 +72,7 @@ public class SRFlipFlop extends AbstractFlipFlop {
       ArrayList<String> Contents = new ArrayList<String>();
       if (HDLType.endsWith(VHDL))
         Contents.add("   s_next_state <= (s_current_state_reg OR S) AND NOT(R);");
-      else Contents.add("   assign s_next_state = (s_current_state_reg|S)&~(R);");
+      else Contents.add("   assign s_next_state = (s_current_state_reg[ActiveLevel]|S)&~(R);");
       return Contents;
     }
   }

@@ -72,8 +72,8 @@ public class JKFlipFlop extends AbstractFlipFlop {
         Contents.add("   s_next_state <= (NOT(s_current_state_reg) AND J) OR");
         Contents.add("                   (s_current_state_reg AND NOT(K));");
       } else {
-        Contents.add("   assign s_next_state = (~(s_current_state_reg)&J)|");
-        Contents.add("                         (s_current_state_reg&~(K));");
+        Contents.add("   assign s_next_state = (~(s_current_state_reg[ActiveLevel])&J)|");
+        Contents.add("                         (s_current_state_reg[ActiveLevel]&~(K));");
       }
       return Contents;
     }
