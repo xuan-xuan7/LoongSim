@@ -66,10 +66,14 @@ if ($InstallerRevision -gt 0) {
     # equal-version product, while Burn uses the fourth field to order bundles.
     $maximum = 'IncludeMaximum="$(var.JpUpgradeVersionOnlyDetectUpgrade)"'
     $minimum = 'IncludeMinimum="$(var.JpUpgradeVersionOnlyDetectDowngrade)"'
-    if (!$template.Contains($maximum) -or !$template.Contains($minimum)) {
+    $productId = 'Id="$(var.JpProductCode)"'
+    if (!$template.Contains($maximum) -or !$template.Contains($minimum) -or !$template.Contains($productId)) {
         throw 'Unexpected jpackage upgrade template; review same-version replacement.'
     }
     $template = $template.Replace($maximum, 'IncludeMaximum="yes"').Replace($minimum, 'IncludeMinimum="no"')
+    # jpackage derives the same product code from the unchanged public version.
+    # A major upgrade needs a distinct product code to replace the old payload.
+    $template = $template.Replace($productId, ('Id="' + [Guid]::NewGuid().ToString('B') + '"'))
 }
 [IO.File]::WriteAllText((Join-Path $resources 'main.wxs'),$template,[Text.UTF8Encoding]::new($false))
 $oldPath = $env:PATH
