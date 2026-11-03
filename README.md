@@ -12,14 +12,10 @@
 - 映射界面显示中文标签与实体资源位置，支持多位端口拆分、数码管及矩阵键盘适配。
 - Windows 安装包内置 Java 和 FPGA 工具，无需分别操作底层工具。
 
-## 选择版本
+## 下载与运行
 
-| 版本 | 用途 |
-|---|---|
-| [1.1.0 · master 完整版](https://github.com/xuan-xuan7/LoongSim/releases/tag/v1.1.0) | 电路编辑、仿真，以及 Windows FPGA 全流程 |
-| [1.0.1 · logisim-only](https://github.com/xuan-xuan7/LoongSim/releases/tag/v1.0.1-logisim-only) | 仅电路编辑与仿真 |
-
-当前完整安装包支持 Windows 10/11 x64，FPGA 功能针对龙芯 A7 实验箱（XC7A200T / FBG676 / -1）。
+项目统一基于 `master` 开发和发布。当前版本1.1.0支持 Windows 10/11 x64，包含电路编辑、仿真及 FPGA 全流程。
+FPGA 功能针对龙芯 A7 实验箱（XC7A200T / FBG676 / -1）。
 安装后从桌面或开始菜单启动。实验箱下载所需的驱动和厂商固件条件见[使用指南](docs/getting-started.md)。
 
 ## 文档

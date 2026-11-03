@@ -6,7 +6,7 @@
 2. Windows 用户下载名称以 `setup-unsigned.exe` 结尾的 EXE 安装向导，双击安装。
 3. 安装完成后，从桌面或开始菜单启动 LoongSim。Windows 安装包内置 Java，无需单独安装。
 
-当前完整版为1.1.0，支持 Windows 10/11 x64；1.0.1-logisim-only 仅提供电路编辑和仿真。
+项目统一基于 `master` 开发和发布，当前版本1.1.0支持 Windows 10/11 x64，包含电路编辑、仿真及 FPGA 全流程。
 升级前保存自己的 `.circ` 电路文件，并关闭旧版程序。各版本的升级条件和签名情况见[版本记录](changelog/README.md)。
 
 ## 设计与仿真
