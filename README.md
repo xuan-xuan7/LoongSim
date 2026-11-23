@@ -3,7 +3,7 @@
 面向青少年的数字电路设计、仿真与 FPGA 实验平台。
 在同一个软件中完成画电路、验证逻辑、映射实验箱资源、生成位流和下载到 FPGA。
 
-**[下载 Windows 安装包](https://github.com/xuan-xuan7/LoongSim/releases/tag/v1.1.0)** · [开始使用](docs/getting-started.md) · [文档中心](docs/README.md)
+**[下载 Windows 安装包](https://github.com/xuan-xuan7/LoongSim/releases/latest)** · [开始使用](docs/getting-started.md) · [文档中心](docs/README.md)
 
 ## 主要功能
 
@@ -14,7 +14,7 @@
 
 ## 下载与运行
 
-项目统一基于 `master` 开发和发布。当前版本1.1.0支持 Windows 10/11 x64，包含电路编辑、仿真及 FPGA 全流程。
+项目统一基于 `master` 开发和发布。当前版本 1.2.0 支持 Windows 10/11 x64，包含电路编辑、仿真及 FPGA 全流程。
 FPGA 功能针对龙芯 A7 实验箱（XC7A200T / FBG676 / -1）。
 安装后从桌面或开始菜单启动。实验箱下载所需的驱动和厂商固件条件见[使用指南](docs/getting-started.md)。
 

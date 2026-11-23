@@ -1,23 +1,17 @@
-LoongSim 1.1.0 - Windows x64 full edition (master)
+LoongSim 1.2.0 - Windows x64 full edition (master)
 ================================================
 
-Install using LoongSim-1.1.0-master-windows-x64-setup-unsigned.exe.
+Install using LoongSim-1.2.0-master-windows-x64-setup-unsigned.exe.
 The installer includes Java and the FPGA tools. Start LoongSim from the desktop
 shortcut or Start menu after installation. No separate Java or Python installation
 is needed. Close an older LoongSim before upgrading; keep your own .circ files.
 
-2026-11-03 refreshed 1.1.0: smaller A7-only runtime, circuit HDL fixes,
-regression tests, and Help > Check for updates. The EXE installer uses internal
-revision 1.1.0.1 for replacing the earlier 1.1.0 package. Save circuits and close
-all LoongSim windows before installing. If the older installer only offers
-maintenance, uninstall the older application and install this package.
+To upgrade from 1.1.0, open Help > Check for updates and download the installer.
+Save your circuit files and close LoongSim before running the downloaded EXE.
 
-Update checking uses public GitHub Releases. While the repository is private,
-the application reports that update information is unavailable. A newer public
-version is required to trigger an update notification.
-
-RAM, SimpleCounter and level-triggered register latches are currently unsupported
-by the integrated FPGA flow; export reports the unsupported component/configuration.
+The FPGA flow supports edge-triggered RAM with separate data buses, and
+SimpleCounter with an unconnected or constant maximum input. Level-triggered
+register latches remain unsupported on the A7 backend.
 
 FPGA workflow
 -------------

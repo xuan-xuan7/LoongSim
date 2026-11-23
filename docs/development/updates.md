@@ -11,9 +11,9 @@
 
 ## 发布要求
 
-仓库目前为私有，匿名请求返回 404。按项目计划，未来公开仓库并使用 GitHub Releases 提供更新；当前检查会提示无法读取信息，不会误报“已是最新版”。不向安装包嵌入 GitHub Token，也不使用开发机凭据。
+LoongSim 从公开的 GitHub Releases 匿名检查和下载安装包，无需 GitHub 账号。发布接口不可访问时，应用会显示读取失败。
 
-- 使用递增的正式标签，例如 `v1.1.1`、`v1.2.0`。同时修改 `Main.LOONGSIM_VERSION_NAME` 和 `logisim/gradle.properties`；后者保留构建后缀，例如 `1.2.0-java11`。
+- 使用递增的正式标签，例如 `v1.1.1`、`v1.2.0`。同时修改 `Main.LOONGSIM_VERSION_NAME` 、`logisim/loongsim_version.xml` 和 `logisim/gradle.properties`；Gradle 版本保留构建后缀，例如 `1.2.0-java11`。
 - 读取最近最多 100 个 Releases，按三段数字版本比较。忽略草稿、预发布、`-logisim-only` 等旧分发标签；不把 `1.10.0` 错排在 `1.9.0` 前面。
 - Windows 安装包沿用 `LoongSim-<版本>-master-windows-x64-setup-unsigned.exe`。也识别 `-setup.exe`、`-setup-signed.exe`；优先选择不带 `-unsigned` 后缀的包，文件名不代替代码签名验证。
 - 上传完成的安装包必须带 GitHub 资产的 `sha256:` digest，或者同名 `.sha256` 文件。现有打包脚本已生成后者，校验文件记录单个 SHA-256 和完整安装包文件名。

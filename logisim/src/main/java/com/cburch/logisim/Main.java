@@ -85,7 +85,7 @@ public class Main {
 
   public static final String VERSION_NAME = VERSION.toString();
   /** Public LoongSim release version shown in the user interface. */
-  public static final String LOONGSIM_VERSION_NAME = "1.1.0";
+  public static final String LOONGSIM_VERSION_NAME = "1.2.0";
   public static final int COPYRIGHT_YEAR = 2020;
 
   public static boolean ANALYZE = true;
