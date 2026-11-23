@@ -9,6 +9,9 @@ import com.cburch.logisim.fpga.designrulecheck.NetlistComponent;
 import com.cburch.logisim.fpga.hdlgenerator.HDLGeneratorFactory;
 import com.cburch.logisim.fpga.gui.FPGAReport;
 import com.cburch.logisim.instance.StdAttr;
+import com.cburch.logisim.std.memory.Mem;
+import com.cburch.logisim.std.memory.Ram;
+import com.cburch.logisim.std.memory.SimpleCounter;
 import com.cburch.logisim.proj.Project;
 import com.cburch.logisim.std.wiring.Clock;
 import java.io.IOException;
@@ -92,7 +95,30 @@ public final class LoongSimFpgaFlow {
             + "（" + component.getFactory().getName() + "）"
             + (label == null || label.isBlank() ? "" : "，标签：" + label)
             + "，位置：" + component.getLocation()
-            + (latch ? "；当前 A7 布局布线工具不支持电平触发的锁存模式，请改用上升沿或下降沿触发" : ""));
+            + (latch ? "；当前 A7 布局布线工具不支持电平触发的锁存模式，请改用上升沿或下降沿触发" : "")
+            + (component.getFactory() instanceof Ram
+                && attributes.getValue(Mem.ADDR_ATTR).getWidth() > Ram.FPGA_MAX_ADDRESS_BITS
+                ? "；RAM 上板最多支持 " + Ram.FPGA_MAX_ADDRESS_BITS + " 位地址" : ""));
+      }
+    }
+  }
+
+  private static void checkMemoryConnections(Circuit circuit, String path, Set<Circuit> visited,
+      List<String> unsupported) {
+    if (!visited.add(circuit)) return;
+    Netlist nets = circuit.getNetList();
+    for (var entry : nets.GetNormalComponents()) {
+      Component component = entry.GetComponent();
+      if (component.getFactory() instanceof SimpleCounter && !SimpleCounter.hasStaticMaximum(nets, entry)) {
+        unsupported.add(path + "：教学计数器 " + component.getLocation() + " 的 Max 请接常量，或留空按位宽计数");
+      } else if (component.getFactory() instanceof Ram && !Ram.hasAlwaysEnabledRead(nets, entry)) {
+        unsupported.add(path + "：RAM " + component.getLocation() + " 的 OE 请接高电平或留空，保持读取开启");
+      }
+    }
+    for (var entry : nets.GetSubCircuits()) {
+      if (entry.GetComponent().getFactory() instanceof SubcircuitFactory) {
+        Circuit child = ((SubcircuitFactory) entry.GetComponent().getFactory()).getSubcircuit();
+        checkMemoryConnections(child, path + "/" + child.getName(), visited, unsupported);
       }
     }
   }
@@ -134,8 +160,13 @@ public final class LoongSimFpgaFlow {
     ArrayList<String> sheetNames = new ArrayList<>();
     if (circuit.getNetList().DesignRuleCheckResult(
         reporter, HDLGeneratorFactory.VERILOG, true, sheetNames)
-        != com.cburch.logisim.fpga.designrulecheck.Netlist.DRC_PASSED) {
+        != Netlist.DRC_PASSED) {
       throw new IOException("电路设计规则检查失败，无法生成 Verilog");
+    }
+    checkMemoryConnections(circuit, circuit.getName(), new HashSet<>(), unsupported);
+    if (!unsupported.isEmpty()) {
+      throw new IOException("以下连线尚不支持当前 A7 FPGA 实现流程：\n"
+          + String.join("\n", unsupported));
     }
     Set<String> handledComponents = new HashSet<>();
     // This is the original Logisim circuit HDL generator. The LoongSim layer
@@ -462,7 +493,9 @@ public final class LoongSimFpgaFlow {
     Matcher module = Pattern.compile("\\bmodule\\s+" + Pattern.quote(topModule)
         + "\\b(.*?)(?:\\bendmodule\\b)", Pattern.DOTALL).matcher(source);
     if (!module.find()) return new ArrayList<>();
-    String body = module.group(1);
+    // Function and task arguments use the same directions as an external port.
+    String body = module.group(1).replaceAll(
+        "(?s)\\bfunction\\b.*?\\bendfunction\\b|\\btask\\b.*?\\bendtask\\b", " ");
     List<FpgaPort> ports = new ArrayList<>();
     Matcher declaration = VERILOG_DECLARATION_PATTERN.matcher(body);
     while (declaration.find()) addDeclarationPorts(ports, declaration.group(), declaration.group(1));

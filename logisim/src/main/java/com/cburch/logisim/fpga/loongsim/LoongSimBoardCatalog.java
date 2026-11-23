@@ -8,6 +8,7 @@ import java.util.List;
 public final class LoongSimBoardCatalog {
   public static final String BOARD_ID = "loongson-a7-fbg676-1";
   public static final String DEVICE = "xc7a200tfbg676-1";
+  public static final String DEVICE_LABEL = "XC7A200TFBG676";
   public static final String IMAGE_RESOURCE = "fpga/boards/loongson-a7/board-front.png";
   public static final int IMAGE_WIDTH = 1445;
   public static final int IMAGE_HEIGHT = 1088;

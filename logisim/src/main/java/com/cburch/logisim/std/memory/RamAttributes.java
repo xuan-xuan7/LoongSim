@@ -62,7 +62,7 @@ public class RamAttributes extends AbstractAttributeSet {
   private BitWidth addrBits = BitWidth.create(8);
   private BitWidth dataBits = BitWidth.create(8);
   private String Label = "";
-  private AttributeOption Trigger = StdAttr.TRIG_HIGH;
+  private AttributeOption Trigger = StdAttr.TRIG_RISING;
   private AttributeOption BusStyle = BUS_SEP;
   private Font LabelFont = StdAttr.DEFAULT_LABEL_FONT;
   private Boolean LabelVisable = true;

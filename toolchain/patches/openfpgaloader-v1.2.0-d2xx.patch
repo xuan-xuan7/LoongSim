@@ -1,0 +1,168 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4b6ab4c..801924a 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -351,6 +351,12 @@ list(APPEND OPENFPGALOADER_HEADERS
+ 	src/flashInterface.hpp
+ )
+ 
++# LoongSim Windows D2XX transport uses the existing JTAG MPSSE implementation.
++if (WIN32 AND NOT USE_LIBFTDI)
++	add_definitions(-DLOONGSIM_D2XX -DFTDI_VERSION=105)
++	list(APPEND OPENFPGALOADER_SOURCE src/ftdiJtagMPSSE.cpp src/ftdipp_mpsse.cpp src/ftdi-d2xx.cpp)
++endif()
++
+ # FTDI Based cables
+ if (${USE_LIBFTDI})
+ 	add_definitions(-DUSE_LIBFTDI)
+diff --git a/src/ftdiJtagMPSSE.hpp b/src/ftdiJtagMPSSE.hpp
+index 2fd531c..9159103 100644
+--- a/src/ftdiJtagMPSSE.hpp
++++ b/src/ftdiJtagMPSSE.hpp
+@@ -6,7 +6,11 @@
+ #ifndef SRC_FTDIJTAGMPSSE_HPP_
+ #define SRC_FTDIJTAGMPSSE_HPP_
+ 
++#ifdef LOONGSIM_D2XX
++#include "ftdi-d2xx.hpp"
++#else
+ #include <ftdi.h>
++#endif
+ 
+ #include <cstdint>
+ #include <iostream>
+diff --git a/src/ftdipp_mpsse.cpp b/src/ftdipp_mpsse.cpp
+index 0c2ba5f..4629f47 100644
+--- a/src/ftdipp_mpsse.cpp
++++ b/src/ftdipp_mpsse.cpp
+@@ -34,9 +34,6 @@ FTDIpp_MPSSE::FTDIpp_MPSSE(const cable_t &cable, const std::string &dev,
+ 				_interface(cable.config.interface),
+ 				_clkHZ(clkHZ), _buffer_size(2*32768), _num(0)
+ {
+-	libusb_error ret;
+-	char err[256];
+-
+ 	strcpy(_product, "");
+ 	if (!dev.empty()) {
+ 		if (!search_with_dev(dev)) {
+@@ -61,6 +58,13 @@ FTDIpp_MPSSE::FTDIpp_MPSSE(const cable_t &cable, const std::string &dev,
+ 		throw std::runtime_error("_buffer malloc failed");
+ 	}
+ 
++#ifdef LOONGSIM_D2XX
++	snprintf(reinterpret_cast<char *>(_iproduct), sizeof(_iproduct), "%s", _ftdi->product.c_str());
++	snprintf(reinterpret_cast<char *>(_imanufacturer), sizeof(_imanufacturer), "Digilent");
++	snprintf(reinterpret_cast<char *>(_iserialnumber), sizeof(_iserialnumber), "%s", _ftdi->serial.c_str());
++#else
++	libusb_error ret;
++	char err[256];
+ 	/* search for iProduct -> need to have
+ 	 * ftdi->usb_dev (libusb_device_handler) -> libusb_device ->
+ 	 * libusb_device_descriptor
+@@ -116,6 +120,7 @@ FTDIpp_MPSSE::FTDIpp_MPSSE(const cable_t &cable, const std::string &dev,
+ 		printWarn(err);
+ 		memset(_iserialnumber,'\0', 200);
+ 	}
++#endif
+ }
+ 
+ FTDIpp_MPSSE::~FTDIpp_MPSSE()
+@@ -206,8 +211,12 @@ void FTDIpp_MPSSE::open_device(const std::string &serial, unsigned int baudrate)
+ /* cf. ftdi.c same function */
+ void FTDIpp_MPSSE::ftdi_usb_close_internal()
+ {
++#ifdef LOONGSIM_D2XX
++	ftdi_usb_close(_ftdi);
++#else
+ 	libusb_close(_ftdi->usb_dev);
+ 	_ftdi->usb_dev = NULL;
++#endif
+ }
+ 
+ int FTDIpp_MPSSE::close_device()
+@@ -553,6 +562,12 @@ int FTDIpp_MPSSE::mpsse_read(unsigned char *rx_buff, int len)
+ 
+ 	do {
+ 		n = ftdi_read_data(_ftdi, p, len);
++#ifdef LOONGSIM_D2XX
++		if (n == 0) {
++			printError("Timed out reading JTAG data from the Digilent download cable");
++			return -1;
++		}
++#endif
+ 		if (n < 0) {
+ 			fprintf(stderr, "Error: ftdi_read_data in %s", __func__);
+ 			return -1;
+diff --git a/src/ftdipp_mpsse.hpp b/src/ftdipp_mpsse.hpp
+index defa4f7..7c8d62b 100644
+--- a/src/ftdipp_mpsse.hpp
++++ b/src/ftdipp_mpsse.hpp
+@@ -5,7 +5,11 @@
+ 
+ #ifndef _FTDIPP_MPSSE_H
+ #define _FTDIPP_MPSSE_H
++#ifdef LOONGSIM_D2XX
++#include "ftdi-d2xx.hpp"
++#else
+ #include <ftdi.h>
++#endif
+ #include <string>
+ 
+ #include "cable.hpp"
+diff --git a/src/jtag.cpp b/src/jtag.cpp
+index 2b528c7..1c1b74d 100644
+--- a/src/jtag.cpp
++++ b/src/jtag.cpp
+@@ -22,6 +22,8 @@
+ #include "jtag.hpp"
+ #ifdef USE_LIBFTDI
+ #include "ftdiJtagBitbang.hpp"
++#endif
++#if defined(USE_LIBFTDI) || defined(LOONGSIM_D2XX)
+ #include "ftdiJtagMPSSE.hpp"
+ #endif
+ #ifdef ENABLE_GOWIN_GWU2X
+@@ -123,13 +125,15 @@ Jtag::Jtag(const cable_t &cable, const jtag_pins_conf_t *pin_conf,
+ 			throw std::exception();
+ 		_jtag = new FtdiJtagBitBang(cable, pin_conf, dev, serial, clkHZ, verbose);
+ 		break;
++	case MODE_CH552_JTAG:
++		_jtag = new CH552_jtag(cable, dev, serial, clkHZ, verbose);
++		break;
++#endif
++#if defined(USE_LIBFTDI) || defined(LOONGSIM_D2XX)
+ 	case MODE_FTDI_SERIAL:
+ 		_jtag = new FtdiJtagMPSSE(cable, dev, serial, clkHZ,
+ 				invert_read_edge, verbose);
+ 		break;
+-	case MODE_CH552_JTAG:
+-		_jtag = new CH552_jtag(cable, dev, serial, clkHZ, verbose);
+-		break;
+ #endif
+ 	case MODE_CH347:
+ #ifdef ENABLE_CH347
+diff --git a/src/main.cpp b/src/main.cpp
+index 2fed5fb..ad49e8a 100644
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -31,6 +31,9 @@
+ #include "dfu.hpp"
+ #endif
+ #include "display.hpp"
++#ifdef LOONGSIM_D2XX
++#include "ftdi-d2xx.hpp"
++#endif
+ #ifdef ENABLE_EFINIX_SUPPORT
+ #include "efinix.hpp"
+ #endif
+@@ -149,6 +152,10 @@ void displaySupported(const struct arguments &args);
+ 
+ int main(int argc, char **argv)
+ {
++#ifdef LOONGSIM_D2XX
++	if (argc == 2 && std::string(argv[1]) == "--scan-d2xx")
++		return printD2xxScan();
++#endif
+ 	cable_t cable;
+ 	target_board_t *board = NULL;
+ 	jtag_pins_conf_t pins_config = {0, 0, 0, 0, 0, 0};

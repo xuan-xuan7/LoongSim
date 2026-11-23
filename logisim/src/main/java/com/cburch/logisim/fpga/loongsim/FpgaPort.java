@@ -15,6 +15,7 @@ public final class FpgaPort {
   private final int width;
   private final String displayName;
   private final Map<Integer, String> bitLabels;
+  private final java.util.Set<Integer> hexDisplayStarts;
 
   public FpgaPort(String name, FpgaResource.Direction direction, int width) {
     this(name, direction, width, name, Map.of());
@@ -22,11 +23,17 @@ public final class FpgaPort {
 
   public FpgaPort(String name, FpgaResource.Direction direction, int width,
       String displayName, Map<Integer, String> bitLabels) {
+    this(name, direction, width, displayName, bitLabels, java.util.Set.of());
+  }
+
+  FpgaPort(String name, FpgaResource.Direction direction, int width,
+      String displayName, Map<Integer, String> bitLabels, java.util.Set<Integer> hexDisplayStarts) {
     this.name = name;
     this.direction = direction;
     this.width = width;
     this.displayName = displayName == null || displayName.isEmpty() ? name : displayName;
     this.bitLabels = Collections.unmodifiableMap(new TreeMap<>(bitLabels));
+    this.hexDisplayStarts = java.util.Set.copyOf(hexDisplayStarts);
   }
 
   public String getName() { return name; }
@@ -66,7 +73,7 @@ public final class FpgaPort {
     Map<Integer, String> labels = new TreeMap<>();
     bitLabels.forEach((bit, value) -> { if (bit >= low && bit < low + count) labels.put(bit, value); });
     return new FpgaPort(getBaseName() + "[" + (count == 1 ? low : (low + count - 1) + ":" + low)
-        + "]", direction, count, label, labels);
+        + "]", direction, count, label, labels, hexDisplayStarts);
   }
 
   public boolean hasNamedSegments() {
@@ -75,6 +82,15 @@ public final class FpgaPort {
       if (bitLabels.values().stream().noneMatch(label -> label.endsWith(suffix))) return false;
     }
     return width == 7 || width == 8;
+  }
+
+  /** A Hex Digit Display already decoded its four input bits to segments in circuit HDL. */
+  public boolean isDecodedHexDisplay() {
+    return hexDisplayStarts.contains(getLowBit()) && hasNamedSegments();
+  }
+
+  public String getWidthLabel() {
+    return isDecodedHexDisplay() ? "4 位数值（已译码为段信号）" : width + " 位";
   }
 
   /** Separate display components from a shared Logisim output bubble port. */
@@ -118,6 +134,6 @@ public final class FpgaPort {
 
   @Override
   public String toString() {
-    return displayName + "（" + getDirectionLabel() + "，" + width + " 位）";
+    return displayName + "（" + getDirectionLabel() + "，" + getWidthLabel() + "）";
   }
 }

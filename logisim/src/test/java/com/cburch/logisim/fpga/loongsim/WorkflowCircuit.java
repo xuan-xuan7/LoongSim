@@ -13,6 +13,7 @@ import com.cburch.logisim.instance.StdAttr;
 import com.cburch.logisim.proj.Project;
 import com.cburch.logisim.std.memory.Mem;
 import com.cburch.logisim.std.memory.MemContents;
+import com.cburch.logisim.std.memory.RamAppearance;
 import com.cburch.logisim.std.wiring.Constant;
 import com.cburch.logisim.std.wiring.Pin;
 import com.cburch.logisim.tools.AddTool;
@@ -31,6 +32,7 @@ final class WorkflowCircuit implements AutoCloseable {
   final List<Map<String,Long>> expected=new ArrayList<>();
   final String scenario;
   int clock=-1,reset=-1,preset=-1;
+  private int ramAddress, ramInput, ramWrite;
 
   @SuppressWarnings("unchecked") static <T> void set(AttributeSet attributes,String name,String value) {
     Attribute<T> attribute=(Attribute<T>)attributes.getAttribute(name);
@@ -54,7 +56,12 @@ final class WorkflowCircuit implements AutoCloseable {
       for(int port=0;port<instance.getEnds().size();port++) attach(instance,port,(instance.getEnd(port).isInput()?"输入":"输出")+port);
     } else if(scenario.equals("accumulator4")) buildAccumulator();
     else buildSingle(scenario);
-    if(!scenario.equals("RAM")&&!scenario.equals("SimpleCounter")) generateVectors();
+    if (scenario.equals("ram4") || scenario.equals("ram4-falling")) {
+      generateRamVectors(scenario.endsWith("-falling"));
+    } else if (!scenario.startsWith("RAM") && !scenario.equals("ram4-dynamic-oe")
+        && !scenario.equals("SimpleCounter")) {
+      generateVectors();
+    }
   }
   private void buildSingle(String scenario) throws Exception {
     boolean falling=scenario.endsWith("-falling"),high=scenario.endsWith("-high"),low=scenario.endsWith("-low");
@@ -66,7 +73,8 @@ final class WorkflowCircuit implements AutoCloseable {
       case "alu2": tool="ALU";break;
       case "comparator4": tool="Comparator";break;
       case "shifter4": tool="Shifter";break;
-      case "mux4": library="Plexers";tool="Multiplexer";break;
+      case "mux4": case "mux7": library="Plexers";tool="Multiplexer";break;
+      case "bitSelector": library="Plexers";tool="BitSelector";break;
       case "demux2": library="Plexers";tool="Demultiplexer";break;
       case "decoder3": library="Plexers";tool="Decoder";break;
       case "extender4to8": library="Wiring";tool="Bit Extender";break;
@@ -76,7 +84,10 @@ final class WorkflowCircuit implements AutoCloseable {
       case "jkff": library="Memory";tool="J-K Flip-Flop";clock=2;reset=5;preset=6;break;
       case "srff": library="Memory";tool="S-R Flip-Flop";clock=2;reset=5;preset=6;break;
       case "rom4": library="Memory";tool="ROM";break;
-      case "RAM": case "SimpleCounter": library="Memory";break;
+      case "RAM": case "RAM-large": case "ram4": case "ram4-dynamic-oe":
+        library="Memory";tool="RAM";break;
+      case "SimpleCounter": case "counter4": case "counter4-full":
+        library="Memory";tool="SimpleCounter";clock=1;reset=2;break;
       default: throw new IllegalArgumentException(scenario);
     }
     InstanceFactory factory=(InstanceFactory)((AddTool)project.getLogisimFile().getLibrary(library).getTool(tool)).getFactory();
@@ -84,6 +95,14 @@ final class WorkflowCircuit implements AutoCloseable {
     if(falling) attrs.setValue(attrs.containsAttribute(StdAttr.EDGE_TRIGGER)?StdAttr.EDGE_TRIGGER:StdAttr.TRIGGER,StdAttr.TRIG_FALLING);
     if(high||low) attrs.setValue(StdAttr.TRIGGER,high?StdAttr.TRIG_HIGH:StdAttr.TRIG_LOW);
     if(attrs.containsAttribute(StdAttr.WIDTH)) attrs.setValue(StdAttr.WIDTH,BitWidth.create(scenario.equals("alu2")||scenario.equals("demux2")?2:4));
+    if (scenario.equals("mux7")) {
+      attrs.setValue(StdAttr.WIDTH, BitWidth.ONE);
+      set(attrs, "select", "7");
+    }
+    if (scenario.equals("bitSelector")) {
+      attrs.setValue(StdAttr.WIDTH, BitWidth.create(8));
+      set(attrs, "group", "2");
+    }
     if(scenario.equals("decoder3")) set(attrs,"select","3");
     if(scenario.equals("demux2")) set(attrs,"select","2");
     if(scenario.equals("extender4to8")){set(attrs,"in_width","4");set(attrs,"out_width","8");set(attrs,"type","sign");}
@@ -92,10 +111,34 @@ final class WorkflowCircuit implements AutoCloseable {
       MemContents contents=(MemContents)attrs.getValue(attrs.getAttribute("contents"));
       for(int address=0;address<16;address++) contents.set(address,(address*7+3)&15);
     }
-    Component component=factory.createComponent(Location.create(600,600),attrs);
+    if (tool.equals("RAM")) {
+      attrs.setValue(Mem.ADDR_ATTR, BitWidth.create(scenario.equals("RAM-large") ? 9 : 2));
+      attrs.setValue(Mem.DATA_ATTR, BitWidth.create(4));
+      ramAddress = RamAppearance.getAddrIndex(0, attrs);
+      ramInput = RamAppearance.getDataInIndex(0, attrs);
+      ramWrite = RamAppearance.getWEIndex(0, attrs);
+      clock = RamAppearance.getClkIndex(0, attrs);
+      reset = RamAppearance.getClrIndex(0, attrs);
+    }
+    int centerY = scenario.equals("mux7") ? 1500 : 600;
+    Component component=factory.createComponent(Location.create(600,centerY),attrs);
     CircuitMutation mutation=new CircuitMutation(circuit); mutation.add(component);mutation.execute();
     for(int port=0;port<component.getEnds().size();port++) {
       EndData end=component.getEnd(port);
+      if (scenario.equals("mux7") && port < 128) {
+        connectConstant(component, port, Integer.bitCount(port * 17 + 65) & 1);
+        continue;
+      }
+      if (port == 0 && scenario.equals("counter4")) {
+        connectConstant(component, port, 5);
+        continue;
+      }
+      if (port == 0 && scenario.equals("counter4-full")) continue;
+      if (tool.equals("RAM") && port == RamAppearance.getOEIndex(0, attrs)
+          && !scenario.equals("ram4-dynamic-oe")) {
+        if (!falling) connectConstant(component, port, 1);
+        continue;
+      }
       boolean constant=(scenario.equals("adder4")||scenario.equals("subtractor4"))&&port==3 || port==preset;
       if(constant) { connectConstant(component,port,0); continue; }
       attach(component,port,port==clock?"clk":(end.isInput()?"输入":"输出")+port);
@@ -146,15 +189,47 @@ final class WorkflowCircuit implements AutoCloseable {
     CircuitMutation mutation=new CircuitMutation(circuit);mutation.add(pin);mutation.add(Wire.create(point,position));mutation.execute();
     (end.isInput()?inputs:outputs).put(label,pin);
   }
+  private void generateRamVectors(boolean falling) {
+    int idle = falling ? 1 : 0;
+    int edge = 1 - idle;
+    ramVector(0, 0, 0, idle, 1);
+    ramVector(0, 0, 0, idle, 0);
+    for (int address = 0; address < 4; address++) {
+      ramVector(address, address * 3 + 2, 1, idle, 0);
+      ramVector(address, address * 3 + 2, 1, edge, 0);
+    }
+    for (int address = 3; address >= 0; address--) {
+      ramVector(address, 15, 1, edge, 0); // address/data changes without a write edge
+    }
+    ramVector(2, 1, 0, idle, 0);
+    ramVector(2, 1, 0, edge, 0); // write disabled
+    ramVector(2, 15, 1, edge, 1); // clear asynchronously
+    ramVector(2, 15, 1, idle, 1);
+    ramVector(2, 15, 1, edge, 1);
+    ramVector(2, 15, 1, edge, 0); // releasing clear cannot write
+    for (int address = 0; address < 4; address++) {
+      ramVector(address, 15, 0, edge, 0);
+    }
+    ramVector(1, 13, 1, idle, 0);
+    ramVector(1, 13, 1, edge, 0);
+    ramVector(0, 0, 0, edge, 0);
+    ramVector(1, 0, 0, edge, 0);
+  }
+
+  private void ramVector(long address, long data, long write, long clockValue, long clear) {
+    vectors.add(Map.of("输入" + ramAddress, address, "输入" + ramInput, data,
+        "输入" + ramWrite, write, "clk", clockValue, "输入" + reset, clear));
+  }
+
   private void generateVectors() {
     int bits=inputs.entrySet().stream().filter(e -> !e.getKey().equals("clk")).mapToInt(e -> e.getValue().getEnd(0).getWidth().getWidth()).sum();
-    int count=clock<0&&bits<=9?1<<bits:128;
+    int count=clock<0&&bits<=10?1<<bits:128;
     Random random=new Random(0xC1AC017L+scenario.hashCode());
     for(int index=0;index<count;index++) {
       Map<String,Long> vector=new LinkedHashMap<>();int shift=0;
       for(var entry:inputs.entrySet()) {
         int width=entry.getValue().getEnd(0).getWidth().getWidth();
-        long value=clock<0&&bits<=9?(index>>shift):random.nextLong();shift+=width;
+        long value=clock<0&&bits<=10?(index>>shift):random.nextLong();shift+=width;
         if(entry.getKey().equals("clk"))value=0;
         if(entry.getKey().equals("输入"+reset))value=index==0||index%31==0?1:0;
         // S=R=1 is an explicitly invalid SR-latch input, not a defined truth-table vector.

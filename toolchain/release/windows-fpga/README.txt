@@ -28,15 +28,16 @@ Open a circuit, select FPGA implementation, then:
 The configuration is lost when the experiment board loses power.
 
 The supported board is the Loongson A7 XC7A200T-FBG676-1 experiment box.
-USB/JTAG access requires the matching Windows driver and the vendor's downloader
-initialization firmware, where needed. These are not installed by LoongSim.
-Vendor firmware is not redistributed. See the repository's Windows FPGA guide.
+LoongSim automatically detects supported Xilinx and Digilent cables.
+The EXE installer prepares the signed FTDI driver. Bundles that include the
+separate Xilinx driver and firmware also prepare that cable during setup.
+The standalone MSI and portable app use the drivers already on the computer.
 
 Tools and licenses
 ------------------
 FPGA engines and databases are in app/fpga/runtime/windows-x64.
 Original upstream license directories, build metadata and notices are preserved.
-The LoongSim XPCU helper is based on openFPGALoader v1.2.0; its license, patch,
+The LoongSim USB/JTAG helper is based on openFPGALoader v1.2.0; its license, patches,
 source revision and compiler record are included in the runtime's loongsim folder.
 
 Project: https://github.com/xuan-xuan7/LoongSim

@@ -5,6 +5,9 @@ param(
     [string]$AppImagePath,
     [string]$OutputDirectory,
     [string]$WorkDirectory,
+    [string]$FtdiDriverDirectory,
+    [string]$XilinxDriverDirectory,
+    [string]$XilinxFirmwareDirectory,
     [ValidateRange(0,65535)][int]$InstallerRevision = 0
 )
 $ErrorActionPreference = 'Stop'
@@ -31,12 +34,25 @@ $prefix = "LoongSim-$appVersion-master-windows-x64"
 $exe = Join-Path $OutputDirectory "$prefix-setup-unsigned.exe"
 $msi = Join-Path $OutputDirectory "$prefix-unsigned.msi"
 if ((Test-Path -LiteralPath $exe) -or (Test-Path -LiteralPath $msi)) { throw 'Installer already exists; use a new output directory.' }
+if ($XilinxFirmwareDirectory -and !$XilinxDriverDirectory) {
+    throw 'Supply the signed Xilinx cable driver alongside its firmware.'
+}
+if ($AppImagePath -and $XilinxFirmwareDirectory) {
+    throw 'For a prebuilt app image, stage the Xilinx firmware when building its app image.'
+}
 if (-not $AppImagePath) {
-    & (Join-Path $PSScriptRoot 'package-windows-fpga.ps1') -Java17Home $Java17Home -JarPath $JarPath -OutputDirectory $OutputDirectory
+    & (Join-Path $PSScriptRoot 'package-windows-fpga.ps1') -Java17Home $Java17Home -JarPath $JarPath -OutputDirectory $OutputDirectory -XilinxFirmwareDirectory $XilinxFirmwareDirectory
     $AppImagePath = Join-Path $OutputDirectory 'LoongSim'
 }
 $AppImagePath = (Resolve-Path -LiteralPath $AppImagePath).Path
 $buildInfo = Get-Content (Join-Path $AppImagePath 'app/LoongSim-build-info.json') -Raw | ConvertFrom-Json
+if ($buildInfo.xilinxCableHelper.PSObject.Properties.Name -notcontains 'd2xxPatchSha256') {
+    throw 'The app image does not include the updated USB/JTAG helper.'
+}
+if ($XilinxDriverDirectory -and ($buildInfo.PSObject.Properties.Name -notcontains 'xilinxCableFirmware' -or
+        $buildInfo.xilinxCableFirmware.PSObject.Properties.Name -notcontains 'xusbdfwu.hex')) {
+    throw 'Build the app image with the official Xilinx cable firmware before bundling its driver.'
+}
 if ($buildInfo.version -ne $appVersion) { throw 'Application image and installer versions differ.' }
 $jar = Join-Path $AppImagePath "app/LoongSim-$jarVersion-all.jar"
 if ((Get-FileHash -LiteralPath $jar -Algorithm SHA256).Hash.ToLowerInvariant() -ne $buildInfo.jarSha256) {
@@ -50,6 +66,7 @@ if (Test-Path -LiteralPath $work) { throw 'Installer staging directory already e
 $resources = Join-Path $work 'resources'
 $installer = Join-Path $work 'installer'
 New-Item -ItemType Directory -Force $resources,$installer | Out-Null
+$cableDrivers = & (Join-Path $PSScriptRoot 'prepare-windows-cable-drivers.ps1') -WorkDirectory $work -FtdiDriverDirectory $FtdiDriverDirectory -XilinxDriverDirectory $XilinxDriverDirectory
 # jpackage 17 defaults to one CAB. Split the 3+ GB toolchain into bounded, embedded cabinets.
 # The template comes from the exact JDK used to build this installer.
 Push-Location $work
@@ -101,7 +118,10 @@ $bundle = @"
     <BootstrapperApplicationRef Id="WixStandardBootstrapperApplication.HyperlinkLicense">
       <bal:WixStandardBootstrapperApplication LicenseUrl="https://github.com/xuan-xuan7/LoongSim/blob/master/logisim/LICENSE.md" />
     </BootstrapperApplicationRef>
-    <Chain><MsiPackage SourceFile="$msiXml" DisplayInternalUI="yes" Vital="yes" /></Chain>
+    <Chain>
+      $cableDrivers
+      <MsiPackage SourceFile="$msiXml" DisplayInternalUI="yes" Vital="yes" />
+    </Chain>
   </Bundle>
 </Wix>
 "@
@@ -118,6 +138,7 @@ foreach ($file in @($exe,$msi)) {
 $info = [ordered]@{
     platform='windows-x64'; version=$appVersion; branch='master'; signed=$false
     installerRevision=$InstallerRevision; bundleVersion=$bundleVersion
+    cableDrivers=[ordered]@{ftdi=$true; xilinx=[bool]$XilinxDriverDirectory}
     sourceCommit=$buildInfo.sourceCommit; uncommittedChanges=$buildInfo.uncommittedChanges
     jarSha256=$buildInfo.jarSha256; tools=$buildInfo.tools; xilinxCableHelper=$buildInfo.xilinxCableHelper
     installers=@(@($exe,$msi) | ForEach-Object {

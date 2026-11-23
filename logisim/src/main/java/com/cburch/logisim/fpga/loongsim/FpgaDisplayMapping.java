@@ -1,5 +1,6 @@
 package com.cburch.logisim.fpga.loongsim;
 
+import com.cburch.logisim.std.io.HexDigit;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -47,7 +48,7 @@ final class FpgaDisplayMapping {
       }
       if (LoongSimBoardCatalog.isDisplay(resource)) {
         int position = LoongSimBoardCatalog.displayPosition(resource);
-        if (LoongSimBoardCatalog.isHexDisplay(resource)) {
+        if (LoongSimBoardCatalog.isHexDisplay(resource) && !target.isDecodedHexDisplay()) {
           List<String> bits = new ArrayList<>();
           for (int bit = 3; bit >= 0; bit--) bits.add(reference(target.getBaseName(), target.getLowBit() + bit));
           hexValues.put(position, "{" + String.join(", ", bits) + "}");
@@ -143,21 +144,23 @@ final class FpgaDisplayMapping {
     lines.add("  );");
     Map<Integer, String> displayPatterns = new java.util.TreeMap<>();
     patterns.forEach((position, bits) -> displayPatterns.put(position, "{" + String.join(", ", bits) + "}"));
-    // Raw 4-bit values are decoded only when that mapping mode is explicitly selected.
-    for (Map.Entry<Integer, String> entry : hexValues.entrySet()) {
-      String decoded = unique("loongsim_hex_segments_" + entry.getKey());
-      lines.add("  reg [6:0] " + decoded + ";");
-      lines.add("  always @* begin");
-      lines.add("    case (" + entry.getValue() + ")");
-      int[] glyphs = {0x7e, 0x30, 0x6d, 0x79, 0x33, 0x5b, 0x5f, 0x70,
-          0x7f, 0x7b, 0x77, 0x1f, 0x4e, 0x3d, 0x4f, 0x47};
+    if (!hexValues.isEmpty()) {
+      // The board orders its segment bits from A (MSB) to G (LSB).
+      String decoder = unique("loongsim_decode_hex");
+      lines.add("  function [6:0] " + decoder + ";");
+      lines.add("    input [3:0] digit;");
+      lines.add("    begin");
+      lines.add("      case (digit)");
       for (int value = 0; value < 16; value++) {
-        lines.add("      4'h" + Integer.toHexString(value) + ": " + decoded + " = 7'h" + Integer.toHexString(glyphs[value]) + ";");
+        int pattern = Integer.reverse(HexDigit.getSegmentPattern(value)) >>> (Integer.SIZE - 7);
+        lines.add("        4'h" + Integer.toHexString(value) + ": " + decoder
+            + " = 7'h" + Integer.toHexString(pattern) + ";");
       }
-      lines.add("      default: " + decoded + " = 7'b0;");
-      lines.add("    endcase");
-      lines.add("  end");
-      displayPatterns.put(entry.getKey(), decoded);
+      lines.add("        default: " + decoder + " = 7'b0;");
+      lines.add("      endcase");
+      lines.add("    end");
+      lines.add("  endfunction");
+      hexValues.forEach((position, input) -> displayPatterns.put(position, decoder + "(" + input + ")"));
     }
     if (segments != null) {
       String divider = unique("loongsim_scan_divider");

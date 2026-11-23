@@ -10,12 +10,12 @@
 
 端口映射后不会立即开始编译。综合和布局布线是第二步的内部阶段，界面显示状态与日志，
 不再提供重复的独立按钮。引脚约束（XDC）自动生成，其说明位于“流程说明”中。
-设备区仅保留“检测设备”；当前针对 A7 实验箱，下载器识别和初始化由软件自动处理。
-工具均由 LoongSim 内部调用，
-无需分别打开工具或输入命令。
+点击「检测设备」或「下载到 FPGA」时，LoongSim 会自动识别连接的下载器。Xilinx Platform Cable USB
+使用 WinUSB，Digilent USB/JTAG 可直接使用 Windows 中已有的 FTDI 驱动。两款下载器使用相同的 A7 引脚映射
+和位流。界面显示器件型号 XC7A200TFBG676，工具链仍以 -1 速度等级进行时序分析。
 
-界面不提供下载器或固件选择。下载前自动识别实验箱下载器。未识别、存在多个下载器或目标不是
-XC7A200T 时停止下载。本版只自动处理单器件 JTAG 链；下载到 FPGA SRAM，不写入 Flash。
+每次下载前，LoongSim 会读取 JTAG 链并确认只有一颗 XC7A200T。实验时连接一台下载器。
+位流写入 FPGA 的 SRAM，实验箱断电后清除。
 
 ## 运行时组成
 
@@ -28,7 +28,7 @@ Windows 10/11 x64，不依赖 WSL、Vivado 或系统 Python：
 | Project X-Ray、FASM、器件数据库 | 同一 openXC7 工具包 | FASM → frames → `.bit` |
 | Python | 同一 OSS CAD Suite 的 Python 3.11 | 内部运行 X-Ray 脚本 |
 | openFPGALoader | 同一 OSS CAD Suite | USB/JTAG 检测和 FPGA 下载 |
-| Xilinx 下载器兼容助手 | openFPGALoader v1.2.0 + 项目补丁 | 支持 03fd:0007/0008、自动初始化和同编号重连 |
+| USB/JTAG 下载工具 | openFPGALoader v1.2.0 + 项目补丁 | 支持 Xilinx 03fd:0007/0008 和 Digilent Windows FTDI 驱动 |
 
 版本按 openXC7 的配套要求固定，不能只替换其中一个工具。下载地址、SHA256、版本和
 器件在 `windows-tools.lock.json` 中记录。构建机保留原始工具目录、动态库、技术库、许可证和构建信息；
@@ -71,8 +71,16 @@ Java、Python 运行时、位流转换所需模块、共用动态库、许可证
 
 同版本重新打包时可加 `-InstallerRevision 1`：公开版本号不变，EXE 的内部版本增加第四段，并在 MSI 中启用同版本替换。后续同版本修订须递增该数字；正常发布更高版本时可恢复默认值0。
 
-最后一个脚本输出的目录可以直接双击 `LoongSim.exe` 运行。Java 和 FPGA 工具均在应用目录
-内部，无需另行安装。安装包脚本封装同样的完整目录，输出带桌面及开始菜单快捷方式的 EXE 和 MSI。
+应用目录中可以双击运行 LoongSim.exe。Windows EXE 安装向导会预装 FTDI 的原版签名驱动，
+由 Windows 选择匹配的驱动。裸 MSI 只安装应用，供已经部署好驱动的环境使用。
+
+面向两种下载器的安装包需要在构建时提供有权部署的 Xilinx 签名驱动和配套固件。向安装包脚本传入
+XilinxDriverDirectory（目录内包含 xpcwinusb.inf 和 xpcwinusb.cat）和 XilinxFirmwareDirectory
+（目录内包含 xusbdfwu.hex、xusb_emb.hex 和 xusb_xp2.hex）。使用预生成的应用目录时，先在构建
+应用目录时传入 XilinxFirmwareDirectory，再在生成安装包时传入 XilinxDriverDirectory。
+
+FTDI 原版驱动可提前下载到 local/toolchain-cache/CDM-v2.12.36.20-WHQL-Certified.zip，也可以通过
+FtdiDriverDirectory 指定已解压的原版签名包目录。安装向导需要 Windows 管理员授权来准备下载器驱动。
 默认发布目录是 `dist/LoongSim-版本号/`，文件名带 `master` 与 `unsigned`，并附 SHA256 和构建清单。
 工具链按多个嵌入式 CAB 打包，避免单个 CAB 的体积限制；与旧 LoongSim 安装包保持升级标识兼容。
 已有应用目录可以通过 `-AppImagePath` 传入，避免重新复制工具链。应用目录必须包含配套 FPGA 工具链，不能用仅含编辑器的目录代替。
@@ -110,8 +118,8 @@ $env:LOONGSIM_FPGA_TEST_SIMULATOR=(Resolve-Path 'fpga/runtime/windows-x64/oss-ca
 .\logisim\gradlew.bat -p logisim --no-daemon cleanTest test --tests '*WindowsFpgaIntegrationTest'
 ```
 
-测试不执行设备下载。实际下载还需连接实验箱及其 JTAG 下载器、确认 Windows USB 驱动；
-软件不会自动安装或替换已有驱动。2026-10-29 已完成实机验证，见下文。
+自动化测试涵盖下载器识别，但设备下载需要连接实机。Xilinx 下载器的记录见下文。Digilent FT232H
+已使用 Windows 原有驱动读回 XC7A200T 的 IDCODE，并完成 SRAM 下载。
 板卡事实及 55 个资源引脚的资料核对见
 [板卡说明](../../fpga/boards/loongson-a7/HARDWARE_NOTES.md)。
 
@@ -127,7 +135,7 @@ LoongSim 自动查找应用私有 `loongsim/firmware` 目录、`XILINX_VIVADO` �
 `C:\Xilinx\Vivado\2019.2\data\xicom\xusbdfwu.hex`。不会启动 Vivado。
 学生界面无需指定固件。构建或部署 A7 工具组件时准备配套的官方 HEX 文件；开发时可用
 `LOONGSIM_XPCU_FIRMWARE` 或
-`-Dloongsim.fpga.xpcuFirmware=...` 指定。官方下载器固件不随项目补丁再分发。
+`-Dloongsim.fpga.xpcuFirmware=...` 指定。Xilinx 的驱动和固件由打包方按可部署的授权提供。
 
 兼容助手与原始 openFPGALoader 分开保存，其他下载器仍使用原始工具。补丁、源码提交、编译器版本、
 二进制 SHA256、许可证保存在运行时的 `loongsim/` 中。正常自动化测试不会执行硬件下载。

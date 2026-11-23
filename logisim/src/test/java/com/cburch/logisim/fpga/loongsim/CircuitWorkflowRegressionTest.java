@@ -23,9 +23,9 @@ import org.junit.runners.Parameterized;
 public class CircuitWorkflowRegressionTest {
   @Parameterized.Parameters(name="{0}") public static Object[][] circuits(){
     return new Object[][] {{"adder4"},{"subtractor4"},{"alu2"},{"comparator4"},{"shifter4"},
-      {"mux4"},{"demux2"},{"decoder3"},{"extender4to8"},{"register4"},{"dff"},{"tff"},{"jkff"},{"srff"},{"rom4"},
+      {"mux4"},{"mux7"},{"demux2"},{"decoder3"},{"bitSelector"},{"extender4to8"},{"register4"},{"dff"},{"tff"},{"jkff"},{"srff"},{"rom4"},
       {"hierarchy"},{"accumulator4"},{"dff-falling"},{"tff-falling"},{"jkff-falling"},{"srff-falling"},
-      {"register4-falling"}};
+      {"register4-falling"},{"counter4"},{"counter4-full"},{"ram4"},{"ram4-falling"}};
   }
   @BeforeClass public static void language(){LocaleManager.setLocale(Locale.ENGLISH);}
   @Rule public TemporaryFolder temporary=new TemporaryFolder();
@@ -74,7 +74,10 @@ public class CircuitWorkflowRegressionTest {
     for(FpgaPort port:result.getPorts()) {
       boolean isInput=port.getDirection()==FpgaResource.Direction.INPUT;
       assertTrue("Original label lost: "+port.getDisplayName(),(isInput?fixture.inputs:fixture.outputs).containsKey(port.getDisplayName()));
-      if(port.getDisplayName().equals("clk")){mapping.put(port.getName(),"clk");continue;}
+      if (port.getDisplayName().equals("clk")) {
+        mapping.put(port.getName(), "clk");
+        continue;
+      }
       for(int bit=0;bit<port.getWidth();bit++) {
         String key=port.getWidth()==1?port.getName():port.getName()+"["+bit+"]";
         String resource;

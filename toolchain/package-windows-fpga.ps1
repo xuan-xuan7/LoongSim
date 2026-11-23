@@ -1,7 +1,8 @@
 param(
     [string]$Java17Home,
     [string]$JarPath,
-    [string]$OutputDirectory
+    [string]$OutputDirectory,
+    [string]$XilinxFirmwareDirectory
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -12,7 +13,11 @@ if (-not (Test-Path -LiteralPath (Join-Path $runtime 'runtime.properties'))) {
 }
 if (-not (Test-Path -LiteralPath (Join-Path $runtime 'loongsim/BUILD-INFO.json')) -or
     -not (Test-Path -LiteralPath (Join-Path $runtime 'loongsim/bin/openFPGALoader-xpcu.exe'))) {
-    throw 'Build the Xilinx cable compatibility helper using toolchain/build-windows-xpcu.ps1 first'
+    throw 'Build the USB/JTAG helper using toolchain/build-windows-xpcu.ps1 first'
+}
+$helper = Get-Content -LiteralPath (Join-Path $runtime 'loongsim/BUILD-INFO.json') -Raw | ConvertFrom-Json
+if ($helper.PSObject.Properties.Name -notcontains 'd2xxPatchSha256') {
+    throw 'Rebuild the USB/JTAG helper to include Windows FTDI support.'
 }
 $versionLine = Get-Content (Join-Path $repo 'logisim/gradle.properties') | Where-Object { $_ -match '^version\s*=' }
 $jarVersion = ($versionLine -split '=',2)[1].Trim()
@@ -36,11 +41,25 @@ Copy-Item -LiteralPath (Join-Path $repo 'fpga/boards') -Destination (Join-Path $
 Copy-Item -LiteralPath (Join-Path $repo 'fpga/examples') -Destination (Join-Path $inputDirectory 'fpga/examples') -Recurse
 $runtimeProfile = & (Join-Path $PSScriptRoot 'copy-windows-a7-runtime.ps1') `
     -SourceDirectory $runtime -DestinationDirectory (Join-Path $inputDirectory 'fpga/runtime/windows-x64')
+$firmwareFiles = @{}
+if ($XilinxFirmwareDirectory) {
+    $firmwareTarget = Join-Path $inputDirectory 'fpga/runtime/windows-x64/loongsim/firmware'
+    New-Item -ItemType Directory -Path $firmwareTarget -Force | Out-Null
+    foreach ($name in @('xusbdfwu.hex','xusb_emb.hex','xusb_xp2.hex')) {
+        $firmware = Join-Path $XilinxFirmwareDirectory $name
+        if (!(Test-Path -LiteralPath $firmware -PathType Leaf)) {
+            throw "Missing Xilinx cable firmware: $name"
+        }
+        Copy-Item -LiteralPath $firmware -Destination $firmwareTarget
+        $firmwareFiles[$name] = (Get-FileHash -LiteralPath $firmware -Algorithm SHA256).Hash.ToLowerInvariant()
+    }
+}
 $info = @{
     sourceCommit=(git -C $repo rev-parse HEAD)
     uncommittedChanges=[bool](git -C $repo status --porcelain --untracked-files=normal)
     jarSha256=(Get-FileHash -LiteralPath $JarPath -Algorithm SHA256).Hash.ToLowerInvariant()
     version=$appVersion
+    xilinxCableFirmware=$firmwareFiles
     tools=(Get-Content (Join-Path $PSScriptRoot 'windows-tools.lock.json') -Raw | ConvertFrom-Json)
     runtimeProfile=$runtimeProfile
     xilinxCableHelper=(Get-Content (Join-Path $runtime 'loongsim/BUILD-INFO.json') -Raw | ConvertFrom-Json)

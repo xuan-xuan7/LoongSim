@@ -71,6 +71,11 @@ public final class FpgaToolchain {
   public Path frames2bit() { return nativeRoot.resolve("openxc7/bin/xc7frames2bit.exe"); }
   public Path loader() { return nativeRoot.resolve("oss-cad-suite/bin/openFPGALoader.exe"); }
   public Path xilinxLoader() { return nativeRoot.resolve("loongsim/bin/openFPGALoader-xpcu.exe"); }
+  boolean hasD2xxLoader() throws IOException {
+    Path buildInfo = root.resolve("loongsim/BUILD-INFO.json");
+    return windows && Files.isRegularFile(buildInfo)
+        && Files.readString(buildInfo).contains("\"d2xxPatchSha256\"");
+  }
   public Path loaderForCable(String cable) {
     return cable.startsWith("xilinxPlatformCableUsb") ? xilinxLoader() : loader();
   }

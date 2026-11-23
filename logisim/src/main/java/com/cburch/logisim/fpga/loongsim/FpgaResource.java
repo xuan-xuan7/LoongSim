@@ -45,7 +45,9 @@ public final class FpgaResource {
     if (LoongSimBoardCatalog.isDisplay(id)) {
       if (port.getDirection() != Direction.OUTPUT) return false;
       if (LoongSimBoardCatalog.displaySegment(id) >= 0) return port.getWidth() == 1;
-      if (LoongSimBoardCatalog.isHexDisplay(id)) return port.getWidth() == 4;
+      if (LoongSimBoardCatalog.isHexDisplay(id)) {
+        return port.getWidth() == 4 || port.isDecodedHexDisplay();
+      }
       return port.getWidth() == 7 || port.hasNamedSegments();
     }
     if (port.getWidth() != width) return false;

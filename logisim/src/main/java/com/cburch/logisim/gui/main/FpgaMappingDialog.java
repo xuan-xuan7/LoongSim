@@ -119,8 +119,8 @@ final class FpgaMappingDialog extends JDialog {
         if (resource.getId().equals(mappingFor(value))) mappedLabel = resource.getLabel();
       }
       JLabel label = new JLabel("<html><b>" + html(value.getDisplayName())
-          + "</b><br><small>" + value.getDirectionLabel() + " · " + value.getWidth()
-          + " 位<br>→ " + html(mappedLabel) + "</small></html>");
+          + "</b><br><small>" + value.getDirectionLabel() + " · " + value.getWidthLabel()
+          + "<br>→ " + html(mappedLabel) + "</small></html>");
       if (!value.getBitLabels().isEmpty()) {
         StringBuilder detail = new StringBuilder("<html>");
         value.getBitLabels().forEach((bit, name) -> detail.append("位 ").append(bit)
@@ -137,8 +137,11 @@ final class FpgaMappingDialog extends JDialog {
       if (!event.getValueIsAdjusting() && !rebuildingPorts) {
         selectedArea = null;
         FpgaPort selected = portList.getSelectedValue();
-        displayMode.setSelectedIndex(selected != null && selected.getWidth() == 4 ? 1 : 0);
         String mapped = mappingFor(selected);
+        boolean hex = LoongSimBoardCatalog.isDisplay(mapped)
+            ? LoongSimBoardCatalog.isHexDisplay(mapped)
+            : selected != null && (selected.getWidth() == 4 || selected.isDecodedHexDisplay());
+        displayMode.setSelectedIndex(hex ? 1 : 0);
         if (LoongSimBoardCatalog.isDisplay(mapped)) {
           displayPosition.setSelectedIndex(LoongSimBoardCatalog.displayPosition(mapped));
         }
@@ -236,7 +239,9 @@ final class FpgaMappingDialog extends JDialog {
     resourceHelp.setText(display
         ? (displayMode.getSelectedIndex() == 0
             ? "逐段连接 a～g，或连接7位段选；未连接的段不亮。位选由 LoongSim 完成。"
-            : "4位数值译码为 0～F；位选由 LoongSim 完成。")
+            : port != null && port.isDecodedHexDisplay()
+                ? "电路中的数码显示已经将 4 位数值译码，直接选择板上显示位置。"
+                : "4位数值译码为 0～F；位选由 LoongSim 完成。")
         : selectedArea == LoongSimBoardCatalog.Area.KEYPAD
             ? "按实物从上到下、从左到右选择按键。按下为1，松开为0；扫描和防抖由 LoongSim 完成。"
             : "灰色资源表示方向、位宽或资源占用不兼容。");

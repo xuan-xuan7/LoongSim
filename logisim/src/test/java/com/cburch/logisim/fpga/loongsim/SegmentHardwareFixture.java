@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
 
 /** Real Logisim export, native Verilog truth tables and XC7A200T implementation; never programs JTAG. */
 final class SegmentHardwareFixture {
-  private static String pinPort(String xdc, String pin) {
+  static String pinPort(String xdc, String pin) {
     var matcher=Pattern.compile("set_property\\s+PACKAGE_PIN\\s+"+pin+"\\s+\\[get_ports\\s+\\{?([A-Za-z_][A-Za-z0-9_]*)(?:\\[\\d+\\])?\\}?\\]").matcher(xdc);
     if(!matcher.find()) throw new IllegalStateException("No pin "+pin);
     return matcher.group(1);
@@ -51,7 +51,9 @@ final class SegmentHardwareFixture {
         mapping.put("seg"+segment,"digit[2]."+(char)('a'+segment));
       }
       mapping.put("hexValue","digit[5].hex");
-      for(FpgaPort port:exported.getPorts()) if(port.hasNamedSegments()) mapping.put(port.getName(),"digit[7]");
+      for (FpgaPort port : exported.getPorts()) {
+        if (port.isDecodedHexDisplay()) mapping.put(port.getName(), "digit[7].hex");
+      }
       flow.completeMapping(output,exported.getTopModule(),exported.getPorts(),mapping,null);
       String xdc=Files.readString(output.resolve("constraints.xdc"));
       String[] swPins={"AC21","AD24","AC22","AC23","AB6","W6","AA7"};

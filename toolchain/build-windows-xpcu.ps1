@@ -19,6 +19,7 @@ $source = Join-Path $repo 'local/openfpgaloader-windows-source'
 $build = Join-Path $repo 'local/openfpgaloader-windows-build'
 $dependency = Join-Path $repo 'local/tools/native-usb/include'
 $patch = Join-Path $PSScriptRoot 'patches/openfpgaloader-v1.2.0-xpcu.patch'
+$d2xxPatch = Join-Path $PSScriptRoot 'patches/openfpgaloader-v1.2.0-d2xx.patch'
 $commit = 'befbab4f646207dbaf1daf8b144dd980ad283dd5'
 if (-not (Test-Path $source)) {
     & git clone --depth 1 --branch v1.2.0 https://github.com/trabucayre/openFPGALoader.git $source
@@ -32,6 +33,12 @@ if ($LASTEXITCODE -ne 0) {
     & git -C $source apply $patch
     if ($LASTEXITCODE -ne 0) { throw 'Failed to apply the XPCU compatibility patch' }
 }
+& git -C $source apply --reverse --check $d2xxPatch 2>$null
+if ($LASTEXITCODE -ne 0) {
+    & git -C $source apply $d2xxPatch
+    if ($LASTEXITCODE -ne 0) { throw 'Failed to apply the Windows D2XX patch' }
+}
+Copy-Item -Path (Join-Path $PSScriptRoot 'native/ftdi-d2xx.*') -Destination (Join-Path $source 'src') -Force
 New-Item -ItemType Directory -Force $dependency | Out-Null
 $header = Join-Path $dependency 'libusb.h'
 if (-not (Test-Path $header)) {
@@ -59,19 +66,22 @@ $exe = Join-Path $target 'bin/openFPGALoader-xpcu.exe'
 Copy-Item (Join-Path $build 'openFPGALoader.exe') $exe -Force
 Copy-Item (Join-Path $source 'LICENSE') (Join-Path $target 'licenses/openFPGALoader-Apache-2.0.txt') -Force
 Copy-Item (Join-Path $PSScriptRoot 'licenses/*.txt') (Join-Path $target 'licenses') -Force
-Copy-Item $patch (Join-Path $target 'openfpgaloader-v1.2.0-xpcu.patch') -Force
+Copy-Item $patch,$d2xxPatch -Destination $target -Force
+Copy-Item -Path (Join-Path $PSScriptRoot 'native/ftdi-d2xx.*') -Destination $target -Force
 @{
     name='LoongSim XPCU compatibility helper'; upstream='https://github.com/trabucayre/openFPGALoader'
     sourceCommit=$commit; patchSha256=(Get-FileHash $patch).Hash.ToLowerInvariant()
+    d2xxPatchSha256=(Get-FileHash $d2xxPatch).Hash.ToLowerInvariant()
     binarySha256=(Get-FileHash $exe).Hash.ToLowerInvariant()
     compiler=(& (Join-Path $compiler 'g++.exe') -dumpfullversion)
-    features='Xilinx SRAM programming, USB scan; no compressed bitstreams'
+    features='Xilinx and Digilent D2XX SRAM programming, USB scan; no compressed bitstreams'
 } | ConvertTo-Json | Set-Content (Join-Path $target 'BUILD-INFO.json') -Encoding utf8
 @'
 openFPGALoader v1.2.0, Apache-2.0, https://github.com/trabucayre/openFPGALoader
 Modified by LoongSim: add 03fd:0007/0008 cable identities; retain running FX2
 firmware after validating the Xilinx protocol, including reopening the same PID
 after a RAM firmware load. Firmware is not redistributed.
+Digilent supports the installed FTDI Windows driver via the D2XX interface.
 This helper dynamically links the libusb DLL from the original OSS CAD Suite.
 See the included patch, upstream license and BUILD-INFO.json.
 '@ | Set-Content (Join-Path $target 'NOTICE.txt') -Encoding utf8

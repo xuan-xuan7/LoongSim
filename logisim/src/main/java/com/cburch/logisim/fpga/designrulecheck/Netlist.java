@@ -46,10 +46,12 @@ import com.cburch.logisim.data.AttributeSet;
 import com.cburch.logisim.data.Location;
 import com.cburch.logisim.fpga.gui.FPGAReport;
 import com.cburch.logisim.fpga.hdlgenerator.AbstractHDLGeneratorFactory;
+import com.cburch.logisim.fpga.hdlgenerator.HDLGeneratorFactory;
 import com.cburch.logisim.instance.Instance;
 import com.cburch.logisim.instance.InstanceComponent;
 import com.cburch.logisim.instance.StdAttr;
 import com.cburch.logisim.prefs.AppPreferences;
+import com.cburch.logisim.std.wiring.AbstractConstantHDLGeneratorFactory;
 import com.cburch.logisim.std.wiring.Clock;
 import com.cburch.logisim.std.wiring.Pin;
 import com.cburch.logisim.std.wiring.Probe;
@@ -61,6 +63,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.Set;
 import javax.swing.JProgressBar;
 
@@ -1653,6 +1656,36 @@ public class Netlist implements CircuitListener {
 
   public ArrayList<NetlistComponent> GetSubCircuits() {
     return MySubCircuits;
+  }
+
+  /** Reads a port whose bits are all driven by constants, including through splitters. */
+  public OptionalLong readConstantInput(NetlistComponent component, int port) {
+    var end = component.getEnd(port);
+    if (end == null) return OptionalLong.empty();
+    long value = 0;
+    for (int bit = 0; bit < end.NrOfBits(); bit++) {
+      ConnectionPoint input = end.GetConnection((byte) bit);
+      Net net = input.GetParrentNet();
+      if (net == null) return OptionalLong.empty();
+      SourceInfo source = GetHiddenSource(null, (byte) 0, net, input.GetParrentNetBitIndex(),
+          MyComplexSplitters, new HashSet<>(), new HashSet<>(), null);
+      if (source == null) return OptionalLong.empty();
+      ConnectionPoint pin = source.getSource();
+      Component driver = pin.GetComp();
+      AttributeSet attributes = driver.getAttributeSet();
+      var generator = driver.getFactory().getHDLGenerator(HDLGeneratorFactory.VERILOG, attributes);
+      if (!(generator instanceof AbstractConstantHDLGeneratorFactory)) return OptionalLong.empty();
+      byte driverBit = -1;
+      for (NetlistComponent candidate : MyComponents) {
+        if (candidate.GetComponent() != driver) continue;
+        driverBit = candidate.GetConnectionBitIndex(pin.GetParrentNet(), pin.GetParrentNetBitIndex());
+        break;
+      }
+      if (driverBit < 0) return OptionalLong.empty();
+      long constant = ((AbstractConstantHDLGeneratorFactory) generator).GetConstant(attributes);
+      value |= ((constant >>> driverBit) & 1L) << bit;
+    }
+    return OptionalLong.of(value);
   }
 
   private SourceInfo GetHiddenSource(

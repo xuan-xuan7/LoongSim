@@ -62,14 +62,21 @@ public class FpgaDisplayMappingTest {
       assertEquals(1, result.getPorts().size());
       List<FpgaPort> parts = result.getPorts().get(0).componentParts();
       assertEquals(2, parts.size());
-      assertTrue(parts.stream().allMatch(FpgaPort::hasNamedSegments));
+      assertTrue(parts.stream().allMatch(FpgaPort::isDecodedHexDisplay));
+      assertTrue(parts.stream().allMatch(resource("digit[0].hex")::accepts));
       Map<String,String> mappings = new LinkedHashMap<>();
-      for (FpgaPort part : parts) mappings.put(part.getName(), part.getDisplayName().equals("显示甲") ? "digit[0]" : "digit[7]");
+      for (FpgaPort part : parts) {
+        mappings.put(part.getName(), part.getDisplayName().equals("显示甲") ? "digit[0].hex" : "digit[7]");
+      }
       flow.completeMapping(result.getProjectDirectory(), result.getTopModule(), result.getPorts(), mappings, null);
       String xdc = Files.readString(result.getProjectDirectory().resolve("constraints.xdc"));
       assertEquals(16, xdc.lines().filter(line -> line.startsWith("set_property PACKAGE_PIN")).count());
       assertTrue(xdc.contains("PACKAGE_PIN AC19"));
       assertTrue(FpgaPortMapping.isComplete(result.getPorts().get(0), mappings));
+      String adapter = Files.readString(result.getProjectDirectory().resolve("verilog/loongsim-board-interface.v"));
+      assertFalse("The circuit has already decoded both displays", adapter.contains("loongsim_decode_hex"));
+      assertTrue(adapter.contains("8'h7f"));
+      assertTrue(adapter.contains("8'hfe"));
       assertFalse(LoongSimFpgaFlow.validateProject(result.getProjectDirectory(), result.getTopModule()).isEmpty());
       Map<String,String> duplicate = new LinkedHashMap<>();
       parts.forEach(part -> duplicate.put(part.getName(), "digit[0]"));

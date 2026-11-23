@@ -10,6 +10,7 @@ import com.cburch.logisim.fpga.designrulecheck.Netlist;
 import com.cburch.logisim.fpga.designrulecheck.NetlistComponent;
 import com.cburch.logisim.fpga.hdlgenerator.HDLGeneratorFactory;
 import com.cburch.logisim.instance.StdAttr;
+import com.cburch.logisim.std.io.HexDigit;
 import com.cburch.logisim.std.wiring.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -57,6 +58,7 @@ final class FpgaPortLabels {
     for (int i = 0; i < netlist.NumberOfInOutPorts(); i++) addPin(pinNames, netlist.GetInOutPin(i));
     Map<String, Map<Integer, String>> bits = new HashMap<>();
     Map<String, Map<Integer, String>> groups = new HashMap<>();
+    Set<Integer> hexDisplayStarts = new HashSet<>();
     for (Map.Entry<ArrayList<String>, NetlistComponent> entry :
         netlist.GetMappableResources(new ArrayList<>(), false).entrySet()) {
       NetlistComponent component = entry.getValue();
@@ -64,6 +66,9 @@ final class FpgaPortLabels {
       if (ids == null) continue;
       ComponentMapInformationContainer info = component.GetMapInformationContainer();
       String display = displayPath(circuit, entry.getKey());
+      if (component.GetComponent().getFactory() instanceof HexDigit) {
+        hexDisplayStarts.add(ids.GetOutputStartIndex());
+      }
       addBits(bits, groups, HDLGeneratorFactory.LocalInputBubbleBusname, ids.GetInputStartIndex(),
           info.GetNrOfInports(), display, info::GetInportLabel);
       addBits(bits, groups, HDLGeneratorFactory.LocalOutputBubbleBusname, ids.GetOutputStartIndex(),
@@ -96,7 +101,9 @@ final class FpgaPortLabels {
         }
         display = clocks.isEmpty() ? "系统时钟" : String.join("、", clocks) + "（系统时钟）";
       }
-      result.add(new FpgaPort(port.getName(), port.getDirection(), port.getWidth(), display, bitLabels));
+      Set<Integer> hexStarts = HDLGeneratorFactory.LocalOutputBubbleBusname.equals(port.getName())
+          ? hexDisplayStarts : Set.of();
+      result.add(new FpgaPort(port.getName(), port.getDirection(), port.getWidth(), display, bitLabels, hexStarts));
     }
     return result;
   }

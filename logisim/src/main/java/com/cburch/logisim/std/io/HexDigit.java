@@ -160,7 +160,7 @@ public class HexDigit extends InstanceFactory implements DynamicElementProvider 
         segs = 0x1111111;
         break;
       case 9:
-        segs = 0x1011011;
+        segs = 0x1011111;
         break;
       case 10:
         segs = 0x1111011;
@@ -198,19 +198,25 @@ public class HexDigit extends InstanceFactory implements DynamicElementProvider 
   public static int SEG_F_MASK = 0x1000000;
   public static int SEG_G_MASK = 0x1000;
 
+  /** Seven active-high segments, with segment A in bit 0 and segment G in bit 6. */
+  public static int getSegmentPattern(int digit) {
+    int segments = getSegs(digit);
+    int pattern = 0;
+    if ((segments & SEG_A_MASK) != 0) pattern |= 1;
+    if ((segments & SEG_B_MASK) != 0) pattern |= 2;
+    if ((segments & SEG_C_MASK) != 0) pattern |= 4;
+    if ((segments & SEG_D_MASK) != 0) pattern |= 8;
+    if ((segments & SEG_E_MASK) != 0) pattern |= 16;
+    if ((segments & SEG_F_MASK) != 0) pattern |= 32;
+    if ((segments & SEG_G_MASK) != 0) pattern |= 64;
+    return pattern;
+  }
+
   @Override
   public void propagate(InstanceState state) {
-    int summary = 0;
     Value baseVal = state.getPortValue(HEX);
     if (baseVal == null) baseVal = Value.createUnknown(BitWidth.create(4));
-    int segs = getSegs((int)baseVal.toLongValue());
-    if ((segs & SEG_C_MASK) != 0) summary |= 4; // vertical seg in bottom right
-    if ((segs & SEG_B_MASK) != 0) summary |= 2; // vertical seg in top right
-    if ((segs & SEG_D_MASK) != 0) summary |= 8; // horizontal seg at bottom
-    if ((segs & SEG_G_MASK) != 0) summary |= 64; // horizontal seg at middle
-    if ((segs & SEG_A_MASK) != 0) summary |= 1; // horizontal seg at top
-    if ((segs & SEG_E_MASK) != 0) summary |= 16; // vertical seg at bottom left
-    if ((segs & SEG_F_MASK) != 0) summary |= 32; // vertical seg at top left
+    int summary = getSegmentPattern((int) baseVal.toLongValue());
 
     if (state.getAttributeValue(SevenSegment.ATTR_DP)) {
       Value dpVal = state.getPortValue(DP);

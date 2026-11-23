@@ -58,22 +58,11 @@ public class HexDigitHDLGeneratorFactory extends AbstractHDLGeneratorFactory {
         Contents.add("   WITH ("+BusName+") SELECT "+HDLGeneratorFactory.LocalOutputBubbleBusname+"( "+
         		(ComponentInfo.GetLocalBubbleOutputStartId() + 6)+" DOWNTO "+
         		ComponentInfo.GetLocalBubbleOutputStartId()+") <= ");
-        Contents.add("      \"0111111\" WHEN \"0000\",");
-        Contents.add("      \"0000110\" WHEN \"0001\",");
-        Contents.add("      \"1011011\" WHEN \"0010\",");
-        Contents.add("      \"1001111\" WHEN \"0011\",");
-        Contents.add("      \"1100110\" WHEN \"0100\",");
-        Contents.add("      \"1101101\" WHEN \"0101\",");
-        Contents.add("      \"1111101\" WHEN \"0110\",");
-        Contents.add("      \"0000111\" WHEN \"0111\",");
-        Contents.add("      \"1111111\" WHEN \"1000\",");
-        Contents.add("      \"1100111\" WHEN \"1001\",");
-        Contents.add("      \"1110111\" WHEN \"1010\",");
-        Contents.add("      \"1111100\" WHEN \"1011\",");
-        Contents.add("      \"0111001\" WHEN \"1100\",");
-        Contents.add("      \"1011110\" WHEN \"1101\",");
-        Contents.add("      \"1111001\" WHEN \"1110\",");
-        Contents.add("      \"1110001\" WHEN OTHERS;");
+        for (int digit = 0; digit < 16; digit++) {
+          Contents.add("      \"" + binary(HexDigit.getSegmentPattern(digit), 7)
+              + "\" WHEN \"" + binary(digit, 4) + "\",");
+        }
+        Contents.add("      \"0000000\" WHEN OTHERS;");
       } else {
         Contents.add("   "+HDLGeneratorFactory.LocalOutputBubbleBusname+"( "+
         		(ComponentInfo.GetLocalBubbleOutputStartId() + 6)+" DOWNTO "+
@@ -93,30 +82,21 @@ public class HexDigitHDLGeneratorFactory extends AbstractHDLGeneratorFactory {
                        (ComponentInfo.GetLocalBubbleOutputStartId() + 6)+":"+
                        ComponentInfo.GetLocalBubbleOutputStartId()+"]";
       if (ComponentInfo.EndIsConnected(HexDigit.HEX)) {
-        String RegName = "s_" + CorrectLabel.getCorrectLabel(Label) + "_" + ComponentId + "_reg";
+        String decoder = "s_" + CorrectLabel.getCorrectLabel(Label) + "_" + ComponentId + "_segments";
         Contents.add(" ");
-        Contents.add("   reg[6:0] "+RegName+";");
-        Contents.add("   always @(*)");
-        Contents.add("      case ("+BusName+")");
-        Contents.add("        4'b0000 : "+RegName+" = 7'b0111111;");
-        Contents.add("        4'b0001 : "+RegName+" = 7'b0000110;");
-        Contents.add("        4'b0010 : "+RegName+" = 7'b1011011;");
-        Contents.add("        4'b0011 : "+RegName+" = 7'b1001111;");
-        Contents.add("        4'b0100 : "+RegName+" = 7'b1100110;");
-        Contents.add("        4'b0101 : "+RegName+" = 7'b1101101;");
-        Contents.add("        4'b0110 : "+RegName+" = 7'b1111101;");
-        Contents.add("        4'b0111 : "+RegName+" = 7'b0000111;");
-        Contents.add("        4'b1000 : "+RegName+" = 7'b1111111;");
-        Contents.add("        4'b1001 : "+RegName+" = 7'b1100111;");
-        Contents.add("        4'b1010 : "+RegName+" = 7'b1110111;");
-        Contents.add("        4'b1011 : "+RegName+" = 7'b1111100;");
-        Contents.add("        4'b1100 : "+RegName+" = 7'b0111001;");
-        Contents.add("        4'b1101 : "+RegName+" = 7'b1011110;");
-        Contents.add("        4'b1110 : "+RegName+" = 7'b1111001;");
-        Contents.add("        default : "+RegName+" = 7'b1110001;");
-        Contents.add("      endcase");
-        Contents.add(" ");
-        Contents.add("   assign "+Signame+" = "+RegName+";");
+        Contents.add("   function [6:0] " + decoder + ";");
+        Contents.add("      input [3:0] digit;");
+        Contents.add("      begin");
+        Contents.add("         case (digit)");
+        for (int digit = 0; digit < 16; digit++) {
+          Contents.add("            4'h" + Integer.toHexString(digit) + ": " + decoder
+              + " = 7'h" + Integer.toHexString(HexDigit.getSegmentPattern(digit)) + ";");
+        }
+        Contents.add("            default: " + decoder + " = 7'b0;");
+        Contents.add("         endcase");
+        Contents.add("      end");
+        Contents.add("   endfunction");
+        Contents.add("   assign " + Signame + " = " + decoder + "(" + BusName + ");");
       } else {
         Contents.add("   assign "+Signame+" = "+BusName+";");
       }
@@ -127,6 +107,11 @@ public class HexDigitHDLGeneratorFactory extends AbstractHDLGeneratorFactory {
       }
     }
     return Contents;
+  }
+
+  private static String binary(int value, int width) {
+    String digits = Integer.toBinaryString(value);
+    return "0".repeat(width - digits.length()) + digits;
   }
 
   @Override

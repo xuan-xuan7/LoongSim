@@ -8,6 +8,9 @@ import com.cburch.logisim.data.BitWidth;
 import com.cburch.logisim.data.Bounds;
 import com.cburch.logisim.data.Direction;
 import com.cburch.logisim.data.Value;
+import com.cburch.logisim.fpga.designrulecheck.Netlist;
+import com.cburch.logisim.fpga.designrulecheck.NetlistComponent;
+import com.cburch.logisim.fpga.hdlgenerator.HDLGeneratorFactory;
 import com.cburch.logisim.gui.icons.CounterIcon;
 import com.cburch.logisim.instance.Instance;
 import com.cburch.logisim.instance.InstanceData;
@@ -26,12 +29,13 @@ import java.math.BigInteger;
 
 /** Five-port counter following the CircuitVerse documentation's teaching interface. */
 public class SimpleCounter extends InstanceFactory {
-  private static final int MAX = 0;
-  private static final int CLOCK = 1;
-  private static final int RESET = 2;
-  private static final int VALUE = 3;
-  private static final int ZERO = 4;
+  static final int MAX = 0;
+  static final int CLOCK = 1;
+  static final int RESET = 2;
+  static final int VALUE = 3;
+  static final int ZERO = 4;
   private static final int DELAY = 8;
+  private static final HDLGeneratorFactory VERILOG_GENERATOR = new SimpleCounterVerilogGenerator();
 
   private static class State extends ClockState implements InstanceData {
     long value;
@@ -58,6 +62,30 @@ public class SimpleCounter extends InstanceFactory {
     setIcon(new CounterIcon());
     setKeyConfigurator(new BitWidthConfigurator(StdAttr.WIDTH));
     setInstanceLogger(Logger.class);
+  }
+
+  @Override
+  public boolean HDLSupportedComponent(String language, AttributeSet attrs) {
+    return VERILOG_GENERATOR.HDLTargetSupported(language, attrs);
+  }
+
+  @Override
+  public HDLGeneratorFactory getHDLGenerator(String language, AttributeSet attrs) {
+    return HDLSupportedComponent(language, attrs) ? VERILOG_GENERATOR : null;
+  }
+
+  public static boolean hasStaticMaximum(Netlist nets, NetlistComponent component) {
+    return !component.EndIsConnected(MAX) || nets.readConstantInput(component, MAX).isPresent();
+  }
+
+  @Override
+  public boolean CheckForGatedClocks(NetlistComponent component) {
+    return true;
+  }
+
+  @Override
+  public int[] ClockPinIndex(NetlistComponent component) {
+    return new int[] {CLOCK};
   }
 
   @Override

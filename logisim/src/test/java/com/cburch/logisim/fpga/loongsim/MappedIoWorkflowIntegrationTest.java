@@ -17,4 +17,7 @@ public class MappedIoWorkflowIntegrationTest {
   @Test public void everySegmentPatternHexDigitAndPartiallyMappedDigitBuilds() throws Exception {
     SegmentHardwareFixture.main(new String[]{directory("逐段映射与十六进制").toString()});
   }
+  @Test public void actualHexDisplayAndRawFourBitMappingAgreeForAllSixteenInputs() throws Exception {
+    DynamicHexDisplayFixture.main(new String[]{directory("双路十六进制实测").toString()});
+  }
 }

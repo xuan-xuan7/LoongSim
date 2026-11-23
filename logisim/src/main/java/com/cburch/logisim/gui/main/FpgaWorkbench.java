@@ -4,7 +4,9 @@ import com.cburch.logisim.prefs.AppPreferences;
 import com.cburch.logisim.circuit.Circuit;
 import com.cburch.logisim.fpga.loongsim.LoongSimFpgaFlow;
 import com.cburch.logisim.fpga.loongsim.FpgaImplementation;
+import com.cburch.logisim.fpga.loongsim.FpgaImplementation.CableSelection;
 import com.cburch.logisim.fpga.loongsim.FpgaToolchain;
+import com.cburch.logisim.fpga.loongsim.LoongSimBoardCatalog;
 import com.cburch.logisim.proj.Project;
 import com.cburch.logisim.proj.ProjectEvent;
 import com.cburch.logisim.proj.ProjectListener;
@@ -110,7 +112,7 @@ final class FpgaWorkbench extends JFrame {
     title.setForeground(NAVY);
     title.setFont(title.getFont().deriveFont(Font.BOLD, AppPreferences.getScaled(22f)));
     panel.add(title, BorderLayout.WEST);
-    JLabel target = new JLabel("目标器件  XC7A200TFBG676-1");
+    JLabel target = new JLabel("目标器件  " + LoongSimBoardCatalog.DEVICE_LABEL);
     target.setOpaque(true);
     target.setForeground(new Color(117, 0, 16));
     target.setBackground(new Color(255, 235, 238));
@@ -159,7 +161,7 @@ final class FpgaWorkbench extends JFrame {
     JPanel cards = new JPanel(new GridLayout(1, 4, 12, 0));
     cards.setOpaque(false);
     cards.add(card("端口映射", mappingStatus, "连接电路与板卡资源"));
-    cards.add(card("目标开发板", "A7 FBG676", "xc7a200tfbg676-1"));
+    cards.add(card("目标开发板", "龙芯 A7", LoongSimBoardCatalog.DEVICE_LABEL));
     cards.add(card("综合", yosysStatus, "生成 Xilinx 综合网表"));
     cards.add(card("位流", implementationStatus, "布局布线与位流生成"));
     panel.add(cards, BorderLayout.NORTH);
@@ -185,7 +187,8 @@ final class FpgaWorkbench extends JFrame {
     help.addActionListener(event -> javax.swing.JOptionPane.showMessageDialog(this,
         "1. 端口映射：选择工程目录，设置电路端口与板卡资源的对应关系。\n"
             + "2. 生成位流：自动完成综合、布局布线和位流生成，无需逐项操作。\n"
-            + "3. 下载到 FPGA：检查目标芯片，并把生成的电路下载到实验箱。\n\n"
+            + "3. 下载到 FPGA：自动识别下载器并检查目标芯片，并把生成的电路下载到实验箱。\n\n"
+            + "可点击“检测设备”确认实验箱已连接。\n"
             + "端口映射会自动生成引脚约束（XDC），不需要单独编辑。\n"
             + "修改电路后，需要重新映射端口并生成位流。\n"
             + "比特流将被下载到FPGA的临时配置区，实验箱断电后清除。",
@@ -434,15 +437,17 @@ final class FpgaWorkbench extends JFrame {
 
   private void detectDevice() {
     final java.nio.file.Path directory = lastProjectDirectory;
+    String cable = CableSelection.AUTO.argument();
     executeAction("检测设备", () -> new FpgaImplementation().detect(directory == null
         ? java.nio.file.Files.createTempDirectory("loongsim-jtag-") : directory,
-        "auto", this::appendLog), () -> appendLog("设备检测完成，请核对日志中的芯片型号。"), () -> {});
+        cable, this::appendLog), () -> appendLog("已检测到 FPGA 芯片 XC7A200T。"), () -> {});
   }
 
   private void programDevice() {
     if (busy || !bitstreamComplete) return;
     final java.nio.file.Path directory = lastProjectDirectory;
-    executeAction("下载到 FPGA", () -> new FpgaImplementation().program(directory, "auto",
+    String cable = CableSelection.AUTO.argument();
+    executeAction("下载到 FPGA", () -> new FpgaImplementation().program(directory, cable,
         this::appendLog, () -> !designChanged), () -> appendLog("FPGA 已配置，断电后清除。"), () -> {});
   }
 

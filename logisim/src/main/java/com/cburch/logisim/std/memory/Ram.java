@@ -43,8 +43,10 @@ import com.cburch.logisim.data.Bounds;
 import com.cburch.logisim.data.Location;
 import com.cburch.logisim.data.Value;
 import com.cburch.logisim.fpga.designrulecheck.CorrectLabel;
+import com.cburch.logisim.fpga.designrulecheck.Netlist;
 import com.cburch.logisim.fpga.designrulecheck.NetlistComponent;
 import com.cburch.logisim.gui.hex.HexFrame;
+import com.cburch.logisim.fpga.hdlgenerator.HDLGeneratorFactory;
 import com.cburch.logisim.gui.icons.ArithmeticIcon;
 import com.cburch.logisim.instance.Instance;
 import com.cburch.logisim.instance.InstanceLogger;
@@ -106,6 +108,9 @@ public class Ram extends Mem {
   private static Object[][] logOptions = new Object[9][];
   private static WeakHashMap<MemContents, HexFrame> windowRegistry = new WeakHashMap<MemContents, HexFrame>();
 
+  public static final int FPGA_MAX_ADDRESS_BITS = 8;
+  private static final HDLGeneratorFactory VERILOG_GENERATOR = new RamVerilogGenerator();
+
   public Ram() {
     super("RAM", S.getter("ramComponent"), 3);
     setIcon(new ArithmeticIcon("RAM",3));
@@ -120,8 +125,7 @@ public class Ram extends Mem {
 
   @Override
   public Object getDefaultAttributeValue(Attribute<?> attr, LogisimVersion ver) {
-    // Missing triggers in older files mean rising-edge writes. New high-level
-    // components explicitly save their trigger so both layouts survive reload.
+    // Legacy files may omit the rising-edge trigger.
     if (attr == StdAttr.TRIGGER) return StdAttr.TRIG_RISING;
     if (attr.equals(StdAttr.APPEARANCE)) {
       return StdAttr.APPEAR_CLASSIC;
@@ -223,10 +227,26 @@ public class Ram extends Mem {
 
   @Override
   public boolean HDLSupportedComponent(String HDLIdentifier, AttributeSet attrs) {
+    if (HDLGeneratorFactory.VERILOG.equals(HDLIdentifier)) {
+      return VERILOG_GENERATOR.HDLTargetSupported(HDLIdentifier, attrs);
+    }
     if (MyHDLGenerator == null) {
       MyHDLGenerator = new RamHDLGeneratorFactory();
     }
     return MyHDLGenerator.HDLTargetSupported(HDLIdentifier, attrs);
+  }
+
+  @Override
+  public HDLGeneratorFactory getHDLGenerator(String language, AttributeSet attrs) {
+    if (HDLGeneratorFactory.VERILOG.equals(language)) {
+      return HDLSupportedComponent(language, attrs) ? VERILOG_GENERATOR : null;
+    }
+    return super.getHDLGenerator(language, attrs);
+  }
+
+  public static boolean hasAlwaysEnabledRead(Netlist nets, NetlistComponent component) {
+    int port = RamAppearance.getOEIndex(0, component.GetComponent().getAttributeSet());
+    return !component.EndIsConnected(port) || nets.readConstantInput(component, port).orElse(0) == 1L;
   }
 
   @Override
@@ -263,6 +283,11 @@ public class Ram extends Mem {
     if (attrs.getValue(RamAttributes.CLEAR_PIN)) {
       Value clearValue = state.getPortValue(RamAppearance.getClrIndex(0, attrs));
       if (clearValue.equals(Value.TRUE)) {
+        int clockPort = RamAppearance.getClkIndex(0, attrs);
+        if (clockPort >= 0) {
+          // Releasing clear must not look like a new clock edge.
+          myState.setClock(state.getPortValue(clockPort), attrs.getValue(StdAttr.TRIGGER));
+        }
         myState.getContents().clear();
         BitWidth dataBits = state.getAttributeValue(DATA_ATTR);
         if (isSeparate(attrs)) {
