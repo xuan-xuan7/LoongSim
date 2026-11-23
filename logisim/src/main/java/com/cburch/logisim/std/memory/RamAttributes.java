@@ -56,6 +56,18 @@ public class RamAttributes extends AbstractAttributeSet {
   static final Attribute<AttributeOption> ATTR_ByteEnables = Attributes.forOption(
           "byteenables", S.getter("ramByteEnables"), new AttributeOption[] {BUS_WITH_BYTEENABLES, BUS_WITHOUT_BYTEENABLES});
   static final Attribute<Boolean> CLEAR_PIN = Attributes.forBoolean("clearpin", S.getter("RamClearPin"));
+  static final Attribute<Boolean> SPACED_LAYOUT =
+      new Attribute<Boolean>("spacedLayout", S.getter("ramComponent")) {
+        @Override
+        public Boolean parse(String value) {
+          return Boolean.valueOf(value);
+        }
+
+        @Override
+        public boolean isHidden() {
+          return true;
+        }
+      };
   private ArrayList<Attribute<?>> myAttributes = new ArrayList<Attribute<?>>();
 
 
@@ -71,6 +83,7 @@ public class RamAttributes extends AbstractAttributeSet {
   private AttributeOption Appearance = StdAttr.APPEAR_CLASSIC;
   private AttributeOption RWBehavior = Mem.READAFTERWRITE;
   private Boolean ClearPin = true;
+  private boolean spacedLayout = true;
   private AttributeOption lineSize = Mem.SINGLE;
   private Boolean allowMisaligned = false;
   private AttributeOption typeOfEnables = Mem.USEBYTEENABLES;
@@ -115,6 +128,7 @@ public class RamAttributes extends AbstractAttributeSet {
     newList.add(StdAttr.LABEL_FONT);
     newList.add(StdAttr.LABEL_VISIBILITY);
     newList.add(StdAttr.APPEARANCE);
+    newList.add(SPACED_LAYOUT);
     if (changes) {
       myAttributes.clear();
       myAttributes.addAll(newList);
@@ -136,6 +150,7 @@ public class RamAttributes extends AbstractAttributeSet {
     d.AsynchronousRead = AsynchronousRead;
     d.RWBehavior = RWBehavior;
     d.ClearPin = ClearPin;
+    d.spacedLayout = spacedLayout;
     d.lineSize = lineSize;
     d.allowMisaligned = allowMisaligned;
     d.typeOfEnables = typeOfEnables;
@@ -194,6 +209,9 @@ public class RamAttributes extends AbstractAttributeSet {
     }
     if (attr == CLEAR_PIN) {
       return (V) ClearPin;
+    }
+    if (attr == SPACED_LAYOUT) {
+      return (V) Boolean.valueOf(spacedLayout);
     }
     if (attr == Mem.ENABLES_ATTR) {
       return (V) typeOfEnables;
@@ -292,6 +310,12 @@ public class RamAttributes extends AbstractAttributeSet {
       }
       ByteEnables = NewBE;
       fireAttributeValueChanged(ATTR_ByteEnables, NewBE, null);
+    } else if (attr == SPACED_LAYOUT) {
+      boolean newLayout = Boolean.TRUE.equals(value);
+      if (spacedLayout != newLayout) {
+        spacedLayout = newLayout;
+        fireAttributeValueChanged(SPACED_LAYOUT, newLayout, !newLayout);
+      }
     } else if (attr == CLEAR_PIN) {
       Boolean val = Boolean.TRUE;
       if (ClearPin != val) {

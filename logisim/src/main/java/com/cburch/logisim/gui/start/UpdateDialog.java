@@ -3,9 +3,11 @@ package com.cburch.logisim.gui.start;
 import static com.cburch.logisim.gui.Strings.S;
 
 import com.cburch.logisim.Main;
+import com.cburch.logisim.proj.ProjectActions;
 import com.cburch.logisim.update.GitHubUpdateClient;
 import com.cburch.logisim.update.ReleaseUpdate;
 import com.cburch.logisim.update.ReleaseVersion;
+import com.cburch.logisim.update.WindowsUpdateInstaller;
 import com.cburch.logisim.util.ApplicationIcon;
 import java.awt.BorderLayout;
 import java.awt.Desktop;
@@ -26,7 +28,6 @@ import java.util.concurrent.ExecutionException;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JDialog;
-import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -35,7 +36,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingWorker;
 
-/** Explicit, user-initiated updates. The installer is handed to the user after verification. */
+/** Downloads a user-selected update, verifies it, and starts installation after LoongSim exits. */
 public final class UpdateDialog extends JDialog {
   private static final long serialVersionUID = 1L;
   private static UpdateDialog active;
@@ -44,11 +45,13 @@ public final class UpdateDialog extends JDialog {
   private final JTextArea details = new JTextArea(12, 52);
   private final JProgressBar progress = new JProgressBar(0, 100);
   private final JButton download = new JButton(S.get("updateDownload"));
+  private final JButton folder = new JButton(S.get("updateOpenFolder"));
   private final JButton page = new JButton(S.get("updateReleasePage"));
   private final JButton close = new JButton(S.get("updateCancel"));
   private SwingWorker<?, ?> worker;
   private ReleaseUpdate release;
   private Path downloaded;
+  private boolean installing;
 
   public static void show(Window owner) {
     if (active != null && active.isDisplayable()) { active.toFront(); return; }
@@ -78,12 +81,17 @@ public final class UpdateDialog extends JDialog {
     progress.setIndeterminate(true);
     bottom.add(progress, BorderLayout.NORTH);
     JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-    buttons.add(page); buttons.add(download); buttons.add(close);
+    buttons.add(page); buttons.add(folder); buttons.add(download); buttons.add(close);
     bottom.add(buttons, BorderLayout.SOUTH);
     content.add(bottom, BorderLayout.SOUTH);
     setContentPane(content);
     download.setEnabled(false);
-    download.addActionListener(e -> { if (downloaded == null) chooseDownload(); else openFolder(); });
+    download.addActionListener(e -> {
+      if (downloaded == null) downloadInstaller();
+      else installUpdate();
+    });
+    folder.setVisible(false);
+    folder.addActionListener(e -> openFolder());
     page.addActionListener(e -> browse(release == null ? GitHubUpdateClient.RELEASES_PAGE : release.getPage()));
     close.addActionListener(e -> closeWindow());
     addWindowListener(new WindowAdapter() {
@@ -125,17 +133,8 @@ public final class UpdateDialog extends JDialog {
     worker = task; task.execute();
   }
 
-  private void chooseDownload() {
-    JFileChooser chooser = new JFileChooser();
-    chooser.setDialogTitle(S.get("updateSaveDirectory"));
-    chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-    Path home = Path.of(System.getProperty("user.home"));
-    Path downloads = home.resolve("Downloads");
-    chooser.setCurrentDirectory((Files.isDirectory(downloads) ? downloads : home).toFile());
-    if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
-    Path directory;
-    try { directory = Files.createTempDirectory(chooser.getSelectedFile().toPath(), "LoongSim-" + release.getVersion() + "-"); }
-    catch (IOException | RuntimeException e) { showFailure(e); return; }
+  private void downloadInstaller() {
+    String directoryPrefix = "LoongSim-" + release.getVersion() + "-";
     ReleaseUpdate.Installer installer = release.getInstaller().orElseThrow();
     download.setEnabled(false); page.setEnabled(false);
     close.setText(S.get("updateCancel"));
@@ -143,7 +142,17 @@ public final class UpdateDialog extends JDialog {
     status.setText(S.get("updateDownloading"));
     SwingWorker<Path, Long> task = new SwingWorker<>() {
       @Override protected Path doInBackground() throws Exception {
-        return client.download(installer, directory, (received, total) -> publish(received), this::isCancelled);
+        Path directory = Files.createTempDirectory(directoryPrefix);
+        Path installerFile = null;
+        try {
+          installerFile = client.download(
+              installer, directory, (received, total) -> publish(received), this::isCancelled);
+          return installerFile;
+        } finally {
+          if (installerFile == null) {
+            try { Files.deleteIfExists(directory); } catch (IOException ignored) { }
+          }
+        }
       }
       @Override protected void process(List<Long> values) {
         if (!isDisplayable()) return;
@@ -157,22 +166,48 @@ public final class UpdateDialog extends JDialog {
         progress.setVisible(false);
         try {
           downloaded = get();
-          status.setText(S.get("updateDownloaded"));
-          details.setText(S.fmt("updateInstallInstructions", downloaded.toString()));
-          details.setCaretPosition(0);
-          download.setText(S.get("updateOpenFolder"));
+          download.setText(S.get("updateInstall"));
+          folder.setVisible(true);
+          installUpdate();
         } catch (CancellationException ignored) {
         } catch (InterruptedException e) { Thread.currentThread().interrupt();
         } catch (ExecutionException | RuntimeException e) {
           showFailure(e);
-          try { Files.deleteIfExists(directory); } catch (IOException ignored) { }
         }
       }
     };
     worker = task; task.execute();
   }
 
+  private void installUpdate() {
+    if (installing) return;
+    installing = true;
+    download.setEnabled(false);
+    folder.setEnabled(false);
+    close.setEnabled(false);
+    status.setText(S.get("updateInstalling"));
+    try {
+      if (!ProjectActions.confirmQuitForUpdate()) {
+        status.setText(S.get("updateInstallDeferred"));
+        return;
+      }
+      WindowsUpdateInstaller.launchAfterExit(
+          downloaded, S.get("updateTitle"), S.fmt("updateInstallInstructions", downloaded));
+      System.exit(0);
+    } catch (IOException | RuntimeException e) {
+      status.setText(S.get("updateInstallFailed"));
+      details.setText(S.fmt("updateInstallInstructions", downloaded));
+      details.setCaretPosition(0);
+    } finally {
+      installing = false;
+      download.setEnabled(true);
+      folder.setEnabled(true);
+      close.setEnabled(true);
+    }
+  }
+
   private void closeWindow() {
+    if (installing) return;
     if (worker != null && !worker.isDone()) worker.cancel(true);
     dispose();
     if (active == this) active = null;

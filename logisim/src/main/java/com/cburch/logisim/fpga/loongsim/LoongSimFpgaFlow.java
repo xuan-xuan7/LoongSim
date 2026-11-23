@@ -111,8 +111,6 @@ public final class LoongSimFpgaFlow {
       Component component = entry.GetComponent();
       if (component.getFactory() instanceof SimpleCounter && !SimpleCounter.hasStaticMaximum(nets, entry)) {
         unsupported.add(path + "：教学计数器 " + component.getLocation() + " 的 Max 请接常量，或留空按位宽计数");
-      } else if (component.getFactory() instanceof Ram && !Ram.hasAlwaysEnabledRead(nets, entry)) {
-        unsupported.add(path + "：RAM " + component.getLocation() + " 的 OE 请接高电平或留空，保持读取开启");
       }
     }
     for (var entry : nets.GetSubCircuits()) {

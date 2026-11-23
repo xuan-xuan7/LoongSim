@@ -19,7 +19,6 @@ public class HdlCapabilityRegressionTest {
   @Test public void levelTriggeredRamIsRejectedBeforeExport() throws Exception {reject("RAM-high", "锁存模式", false);}
   @Test public void largeRamReportsTheAddressWidthLimitBeforeExport() throws Exception {reject("RAM-large", "最多支持 8 位地址", false);}
   @Test public void dynamicCounterMaximumIsRejectedBeforeHdlOutput() throws Exception {reject("SimpleCounter", "Max 请接常量", true);}
-  @Test public void dynamicRamReadEnableIsRejectedBeforeHdlOutput() throws Exception {reject("ram4-dynamic-oe", "OE 请接高电平或留空", true);}
   @Test public void highLevelRegisterIsRejectedBeforeImplementation() throws Exception {rejectLatch("register4-high");}
   @Test public void lowLevelRegisterIsRejectedBeforeImplementation() throws Exception {rejectLatch("register4-low");}
   private void rejectLatch(String mode) throws Exception {

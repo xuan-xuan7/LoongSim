@@ -387,13 +387,21 @@ public class ProjectActions {
   }
 
   public static void doQuit() {
-    Frame top = Projects.getTopFrame();
-    top.savePreferences();
+    if (confirmQuit(true)) System.exit(0);
+  }
 
-    for (Project proj : new ArrayList<Project>(Projects.getOpenProjects())) {
-      if (!proj.confirmClose(S.get("confirmQuitTitle"))) return;
+  public static boolean confirmQuitForUpdate() {
+    return confirmQuit(false);
+  }
+
+  private static boolean confirmQuit(boolean disposeOnDiscard) {
+    Frame top = Projects.getTopFrame();
+    if (top != null) top.savePreferences();
+
+    for (Project proj : new ArrayList<>(Projects.getOpenProjects())) {
+      if (!proj.getFrame().confirmClose(S.get("confirmQuitTitle"), disposeOnDiscard)) return false;
     }
-    System.exit(0);
+    return true;
   }
 
   public static boolean doSave(Project proj) {

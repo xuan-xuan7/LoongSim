@@ -43,7 +43,6 @@ import com.cburch.logisim.data.Bounds;
 import com.cburch.logisim.data.Location;
 import com.cburch.logisim.data.Value;
 import com.cburch.logisim.fpga.designrulecheck.CorrectLabel;
-import com.cburch.logisim.fpga.designrulecheck.Netlist;
 import com.cburch.logisim.fpga.designrulecheck.NetlistComponent;
 import com.cburch.logisim.gui.hex.HexFrame;
 import com.cburch.logisim.fpga.hdlgenerator.HDLGeneratorFactory;
@@ -125,6 +124,8 @@ public class Ram extends Mem {
 
   @Override
   public Object getDefaultAttributeValue(Attribute<?> attr, LogisimVersion ver) {
+    // Files without a layout marker keep the coordinates of their existing wires.
+    if (attr == RamAttributes.SPACED_LAYOUT) return false;
     // Legacy files may omit the rising-edge trigger.
     if (attr == StdAttr.TRIGGER) return StdAttr.TRIG_RISING;
     if (attr.equals(StdAttr.APPEARANCE)) {
@@ -244,11 +245,6 @@ public class Ram extends Mem {
     return super.getHDLGenerator(language, attrs);
   }
 
-  public static boolean hasAlwaysEnabledRead(Netlist nets, NetlistComponent component) {
-    int port = RamAppearance.getOEIndex(0, component.GetComponent().getAttributeSet());
-    return !component.EndIsConnected(port) || nets.readConstantInput(component, port).orElse(0) == 1L;
-  }
-
   @Override
   protected void instanceAttributeChanged(Instance instance, Attribute<?> attr) {
     super.instanceAttributeChanged(instance, attr);
@@ -259,6 +255,7 @@ public class Ram extends Mem {
         || (attr == StdAttr.APPEARANCE)
         || (attr == Mem.LINE_ATTR)
         || (attr == RamAttributes.CLEAR_PIN)
+        || (attr == RamAttributes.SPACED_LAYOUT)
         || (attr == Mem.ENABLES_ATTR)) {
       instance.recomputeBounds();
       configurePorts(instance);
@@ -393,14 +390,10 @@ public class Ram extends Mem {
     
     // perform reads
     BitWidth dataBits = state.getAttributeValue(DATA_ATTR);
-    boolean outputNotEnabled = state.getPortValue(RamAppearance.getOEIndex(0, attrs)).equals(Value.FALSE);
-    if (!separate && outputNotEnabled) {
-      /* put the bus in tri-state in case of a combined bus and no output enable */
+    if (!separate && Value.FALSE.equals(state.getPortValue(RamAppearance.getOEIndex(0, attrs)))) {
       state.setPort(RamAppearance.getDataOutIndex(0, attrs), Value.createUnknown(dataBits), DELAY);
       return;
     }
-    /* if the OE is not activated return */
-    if (outputNotEnabled) return;
     
     /* if the address is bogus set error value */
     if (!goodAddr || errorValue) {
@@ -408,19 +401,7 @@ public class Ram extends Mem {
       return;
     }
     
-    boolean asyncRead = async || attrs.getValue(Mem.ASYNC_READ);
-    
-    if (asyncRead) {
-      state.setPort(RamAppearance.getDataOutIndex(0, attrs), Value.createKnown(dataBits, newMemValue), DELAY);
-      return;
-    }
-    
-    if (edge) {
-      if (attrs.getValue(Mem.READ_ATTR).equals(Mem.READAFTERWRITE))
-        state.setPort(RamAppearance.getDataOutIndex(0, attrs), Value.createKnown(dataBits, newMemValue), DELAY);
-      else
-        state.setPort(RamAppearance.getDataOutIndex(0, attrs), Value.createKnown(dataBits, oldMemValue), DELAY);
-    }
+    state.setPort(RamAppearance.getDataOutIndex(0, attrs), Value.createKnown(dataBits, newMemValue), DELAY);
   }
   
   @Override

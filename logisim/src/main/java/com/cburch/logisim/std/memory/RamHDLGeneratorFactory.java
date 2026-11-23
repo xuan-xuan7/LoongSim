@@ -297,7 +297,12 @@ public class RamHDLGeneratorFactory extends AbstractHDLGeneratorFactory {
     int DinPin = RamAppearance.getDataInIndex(0, attrs);
     PortMap.putAll(GetNetMap("DataIn", true, ComponentInfo, DinPin, Reporter, HDLType, Nets));
     PortMap.putAll(GetNetMap("WE", true, ComponentInfo, RamAppearance.getWEIndex(0, attrs), Reporter, HDLType, Nets));
-    PortMap.putAll(GetNetMap("OE", true, ComponentInfo, RamAppearance.getOEIndex(0, attrs), Reporter, HDLType, Nets));
+    int outputEnable = RamAppearance.getOEIndex(0, attrs);
+    if (outputEnable < 0) {
+      PortMap.put("OE", HDLType.equals(VHDL) ? "'1'" : "1'b1");
+    } else {
+      PortMap.putAll(GetNetMap("OE", true, ComponentInfo, outputEnable, Reporter, HDLType, Nets));
+    }
     if (!asynch) {
       String SetBit = (HDLType.equals(VHDL)) ? "'1'" : "1'b1";
       String ZeroBit = (HDLType.equals(VHDL)) ? "'0'" : "1'b0";

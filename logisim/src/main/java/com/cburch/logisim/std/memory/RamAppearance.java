@@ -49,6 +49,11 @@ import com.cburch.logisim.util.GraphicsUtil;
 
 
 public class RamAppearance {
+  private static final int ADDRESS_Y = 20;
+  private static final int DATA_Y = 60;
+  private static final int WRITE_Y = 100;
+  private static final int CLOCK_Y = 130;
+  private static final int CLASSIC_RAM_HEIGHT = 160;
 
   public static int getNrAddrPorts(AttributeSet attrs) { 
     return 1 ; 
@@ -70,10 +75,7 @@ public class RamAppearance {
     return getNrDataInPorts(attrs)+getNrDataOutPorts(attrs);
   }
   public static int getNrOEPorts(AttributeSet attrs) {
-	if (!attrs.containsAttribute(Mem.ENABLES_ATTR)) return 0;
-    if (!seperatedBus(attrs)||
-        (seperatedBus(attrs) && attrs.getValue(Mem.ENABLES_ATTR).equals(Mem.USEBYTEENABLES))) return 1;
-    else return 0;
+    return attrs.containsAttribute(Mem.ENABLES_ATTR) && !seperatedBus(attrs) ? 1 : 0;
   }
   public static int getNrWEPorts(AttributeSet attrs) {
 	if (!attrs.containsAttribute(Mem.ENABLES_ATTR)) return 0;
@@ -201,7 +203,8 @@ public class RamAppearance {
   public static Bounds getBounds(AttributeSet attrs) {
     int xoffset = (seperatedBus(attrs)) ? 40 : 50;
     if (classicAppearance(attrs)) {
-      return Bounds.create(0, 0, Mem.SymbolWidth + xoffset, 140);
+      return Bounds.create(0, 0, Mem.SymbolWidth + xoffset,
+          useSpacedLayout(attrs) ? CLASSIC_RAM_HEIGHT : 140);
     } else {
       int len = Math.max(attrs.getValue(Mem.DATA_ATTR).getWidth()*20,(getNrLEPorts(attrs)+1)*10);
       return Bounds.create(0, 0, Mem.SymbolWidth + xoffset, getControlHeight(attrs) + len);
@@ -210,6 +213,10 @@ public class RamAppearance {
 
   public static boolean classicAppearance(AttributeSet attrs) {
     return attrs.getValue(StdAttr.APPEARANCE).equals(StdAttr.APPEAR_CLASSIC);
+  }
+
+  private static boolean useSpacedLayout(AttributeSet attrs) {
+    return Boolean.TRUE.equals(attrs.getValue(RamAttributes.SPACED_LAYOUT)) && classicAppearance(attrs);
   }
 
   public static void DrawRamClassic(InstancePainter painter) {
@@ -240,15 +247,17 @@ public class RamAppearance {
     /* draw the contents */
     if (painter.getShowState()) {
       MemState state = (MemState) inst.getData(painter.getCircuitState());
+      int left = useSpacedLayout(attrs) ? 44 : 30;
+      int top = useSpacedLayout(attrs) ? 27 : 15;
       if (state != null)
         state.paint(
             painter.getGraphics(),
             bds.getX(),
             bds.getY(),
-            30,
-            15,
-            bds.getWidth() - 60,
-            bds.getHeight() - 20,
+            left,
+            top,
+            bds.getWidth() - left - 30,
+            bds.getHeight() - top - 5,
             getNrToHighlight(attrs));
     }
   }
@@ -345,7 +354,8 @@ public class RamAppearance {
   }
   
   private static Port getAddrPort(int portIndex, AttributeSet attrs) {
-    Port result = new Port(0,10,Port.INPUT,attrs.getValue(Mem.ADDR_ATTR));
+    int y = useSpacedLayout(attrs) ? ADDRESS_Y : 10;
+    Port result = new Port(0, y, Port.INPUT, attrs.getValue(Mem.ADDR_ATTR));
     result.setToolTip(S.getter("memAddrTip"));
     return result;
   }
@@ -353,7 +363,7 @@ public class RamAppearance {
     int nrDins = getNrDataInPorts(attrs);
     if (nrDins == 0 || portIndex < 0) return null;
     if (portIndex >= nrDins) return null;
-    int ypos = getControlHeight(attrs);
+    int ypos = useSpacedLayout(attrs) ? DATA_Y : getControlHeight(attrs);
     boolean classic = classicAppearance(attrs);
     BitWidth bits = attrs.getValue(Mem.DATA_ATTR);
     if (!classic && bits.getWidth() == 1) ypos += 10;
@@ -376,7 +386,7 @@ public class RamAppearance {
     int nrDouts = getNrDataOutPorts(attrs);
     if (nrDouts == 0 || portIndex < 0) return null;
     if (portIndex >= nrDouts) return null;
-    int ypos = getControlHeight(attrs);
+    int ypos = useSpacedLayout(attrs) ? DATA_Y : getControlHeight(attrs);
     int xpos = Mem.SymbolWidth+40;
     String portType = Port.OUTPUT;
     if (!seperatedBus(attrs)&&attrs.containsAttribute(Mem.ENABLES_ATTR)) {
@@ -417,8 +427,11 @@ public class RamAppearance {
     if (nrWEs == 0 || portIndex < 0) return null;
     if (portIndex >= nrWEs) return null;
     int ypos = 50;
-    if (attrs.getValue(Mem.ENABLES_ATTR).equals(Mem.USELINEENABLES) && classicAppearance(attrs))
+    if (useSpacedLayout(attrs)) {
+      ypos = WRITE_Y;
+    } else if (attrs.getValue(Mem.ENABLES_ATTR).equals(Mem.USELINEENABLES) && classicAppearance(attrs)) {
       ypos = 30;
+    }
     Port result = new Port(0,ypos,Port.INPUT,1);
     result.setToolTip(S.getter("ramWETip"));
     return result;
@@ -428,8 +441,11 @@ public class RamAppearance {
     if (nrClks == 0 || portIndex < 0) return null;
     if (portIndex >= nrClks) return null;
     int ypos = 70;
-    if (attrs.getValue(Mem.ENABLES_ATTR).equals(Mem.USELINEENABLES) && classicAppearance(attrs))
+    if (useSpacedLayout(attrs)) {
+      ypos = CLOCK_Y;
+    } else if (attrs.getValue(Mem.ENABLES_ATTR).equals(Mem.USELINEENABLES) && classicAppearance(attrs)) {
       ypos = 40;
+    }
     ypos += getNrLEPorts(attrs)*10;
     ypos += getNrBEPorts(attrs)*10;
     Port result = new Port(0,ypos,Port.INPUT,1);
@@ -565,6 +581,7 @@ public class RamAppearance {
    }
     for (int i = 0 ; i < getNrDataOutPorts(attrs) ; i++) {
       label = !classic ? "" : getNrDataOutPorts(attrs) == 1 ? "D" : "D"+i;
+      if (useSpacedLayout(attrs)) label = "Q";
       int idx = getDataOutIndex(i,attrs);
       if (!classic) {
         boolean seperate = seperatedBus(attrs) || !attrs.containsAttribute(RamAttributes.ATTR_DBUS);
@@ -692,9 +709,14 @@ public class RamAppearance {
         if (synchronous(attrs)) painter.drawClockSymbol(loc.getX()+20, loc.getY());
         painter.drawPort(idx);
       } else {
-        if (synchronous(attrs)) 
+        if (synchronous(attrs)) {
           painter.drawClock(idx, Direction.EAST);
-        else
+          if (useSpacedLayout(attrs)) {
+            Location loc = inst.getPortLocation(idx);
+            GraphicsUtil.drawText(g, "CLK", loc.getX() + 14, loc.getY(),
+                GraphicsUtil.H_LEFT, GraphicsUtil.V_CENTER);
+          }
+        } else
           painter.drawPort(idx, getNrClkPorts(attrs) == 1 ? "E" : "E"+i, Direction.EAST);
       }
     }
@@ -718,7 +740,11 @@ public class RamAppearance {
     }
     for (int i = 0 ; i < getNrClrPorts(attrs); i++) {
       int idx = getClrIndex(i,attrs);
-      painter.drawPort(idx);
+      if (useSpacedLayout(attrs)) {
+        painter.drawPort(idx, "CLR", Direction.NORTH);
+      } else {
+        painter.drawPort(idx);
+      }
     }
     g.dispose();
   }

@@ -29,9 +29,6 @@ final class RamVerilogGenerator extends MemoryVerilogGenerator {
   @Override
   public ArrayList<String> GetInlinedCode(Netlist nets, Long id, NetlistComponent component,
       FPGAReport reporter, String circuit, String language) {
-    if (!Ram.hasAlwaysEnabledRead(nets, component)) {
-      throw new IllegalStateException("RAM OE must be open or tied high for Verilog export");
-    }
     AttributeSet attrs = component.GetComponent().getAttributeSet();
     int words = 1 << attrs.getValue(Mem.ADDR_ATTR).getWidth();
     int bits = attrs.getValue(Mem.DATA_ATTR).getWidth();

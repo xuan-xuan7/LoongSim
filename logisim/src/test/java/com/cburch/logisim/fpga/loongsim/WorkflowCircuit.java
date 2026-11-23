@@ -58,7 +58,7 @@ final class WorkflowCircuit implements AutoCloseable {
     else buildSingle(scenario);
     if (scenario.equals("ram4") || scenario.equals("ram4-falling")) {
       generateRamVectors(scenario.endsWith("-falling"));
-    } else if (!scenario.startsWith("RAM") && !scenario.equals("ram4-dynamic-oe")
+    } else if (!scenario.startsWith("RAM")
         && !scenario.equals("SimpleCounter")) {
       generateVectors();
     }
@@ -84,7 +84,7 @@ final class WorkflowCircuit implements AutoCloseable {
       case "jkff": library="Memory";tool="J-K Flip-Flop";clock=2;reset=5;preset=6;break;
       case "srff": library="Memory";tool="S-R Flip-Flop";clock=2;reset=5;preset=6;break;
       case "rom4": library="Memory";tool="ROM";break;
-      case "RAM": case "RAM-large": case "ram4": case "ram4-dynamic-oe":
+      case "RAM": case "RAM-large": case "ram4":
         library="Memory";tool="RAM";break;
       case "SimpleCounter": case "counter4": case "counter4-full":
         library="Memory";tool="SimpleCounter";clock=1;reset=2;break;
@@ -134,11 +134,6 @@ final class WorkflowCircuit implements AutoCloseable {
         continue;
       }
       if (port == 0 && scenario.equals("counter4-full")) continue;
-      if (tool.equals("RAM") && port == RamAppearance.getOEIndex(0, attrs)
-          && !scenario.equals("ram4-dynamic-oe")) {
-        if (!falling) connectConstant(component, port, 1);
-        continue;
-      }
       boolean constant=(scenario.equals("adder4")||scenario.equals("subtractor4"))&&port==3 || port==preset;
       if(constant) { connectConstant(component,port,0); continue; }
       attach(component,port,port==clock?"clk":(end.isInput()?"输入":"输出")+port);

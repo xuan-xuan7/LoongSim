@@ -15,13 +15,15 @@ public class UpdateResourcesTest {
         LocaleManager.setLocale(locale);
         for(String key:new String[]{"helpCheckUpdatesItem","updateTitle","updateChecking","updateCurrent","updateLatest",
             "updateAvailable","updateUpToDate","updateNoRelease","updateNoReleaseDetail","updateNoNotes",
-            "updateNoInstaller","updateDownload","updateReleasePage","updateClose","updateCancel","updateSaveDirectory",
-            "updateDownloading","updateDownloaded","updateOpenFolder","updateInstallInstructions","updateFailed",
+            "updateNoInstaller","updateDownload","updateReleasePage","updateClose","updateCancel",
+            "updateDownloading","updateInstalling","updateInstall","updateInstallDeferred","updateInstallFailed",
+            "updateOpenFolder","updateInstallInstructions","updateFailed",
             "updateErrorNetwork","updateErrorUnavailable","updateErrorRateLimit","updateErrorChecksum","updateErrorSize",
             "updateErrorResponse","updateOpenLinkManually"}) assertNotEquals(locale+" missing "+key,key,S.get(key));
       }
       LocaleManager.setLocale(Locale.SIMPLIFIED_CHINESE);
       assertEquals("检查更新…",S.get("helpCheckUpdatesItem"));
+      assertEquals("下载并安装",S.get("updateDownload"));
       assertTrue(S.fmt("updateCurrent",Main.LOONGSIM_VERSION_NAME).contains(Main.LOONGSIM_VERSION_NAME));
       assertTrue(S.fmt("updateInstallInstructions","C:/下载/安装包.exe").contains("C:/下载/安装包.exe"));
     } finally {LocaleManager.setLocale(original);}

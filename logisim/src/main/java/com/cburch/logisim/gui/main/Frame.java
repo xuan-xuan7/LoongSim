@@ -468,6 +468,10 @@ public class Frame extends LFrame implements LocaleListener {
 
   // returns true if user is OK with proceeding
   public boolean confirmClose(String title) {
+    return confirmClose(title, true);
+  }
+
+  public boolean confirmClose(String title, boolean disposeOnDiscard) {
     String message =
         StringUtil.format(S.get("confirmDiscardMessage"), proj.getLogisimFile().getName());
 
@@ -483,8 +487,7 @@ public class Frame extends LFrame implements LocaleListener {
     if (result == 0) {
       ret = ProjectActions.doSave(proj);
     } else if (result == 1) {
-      // Close the current project
-      dispose();
+      if (disposeOnDiscard) dispose();
       ret = true;
     } else {
       ret = false;
