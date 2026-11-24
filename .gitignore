@@ -22,6 +22,7 @@ bootstrap/work/
 local/
 dist/
 fpga/runtime/
+HANDOFF.md
 
 # Large reference installer kept outside Git history
 fpga/loongblock_*.deb
