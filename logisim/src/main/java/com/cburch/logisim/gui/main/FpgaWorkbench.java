@@ -399,7 +399,7 @@ final class FpgaWorkbench extends JFrame {
     this.busy = busy;
     mappingButton.setEnabled(!busy);
     generateButton.setEnabled(!busy && mappingComplete && lastProjectDirectory != null);
-    detectButton.setEnabled(!busy && FpgaToolchain.isWindows());
+    detectButton.setEnabled(!busy && FpgaToolchain.supportsNativeImplementation());
     programButton.setEnabled(!busy && bitstreamComplete);
   }
 

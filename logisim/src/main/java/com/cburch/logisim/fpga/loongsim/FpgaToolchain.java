@@ -15,13 +15,25 @@ import java.util.Set;
 
 /** Application-local tools; never select a different version from the system PATH. */
 public final class FpgaToolchain {
+  enum Platform {
+    WINDOWS("fpga/runtime/windows-x64"),
+    LOONGNIX("fpga/runtime/loongnix20-loongarch64"),
+    LEGACY("fpga/yosys-runtime");
+
+    final String directory;
+
+    Platform(String directory) { this.directory = directory; }
+  }
+
   private final Path root;
   private final Path nativeRoot;
+  private final Platform platform;
   private final boolean windows;
 
-  FpgaToolchain(Path root, boolean windows) {
+  FpgaToolchain(Path root, Platform platform) {
     this.root = root.toAbsolutePath().normalize();
-    this.windows = windows;
+    this.platform = platform;
+    this.windows = platform == Platform.WINDOWS;
     this.nativeRoot = windows ? WindowsNativePath.resolve(this.root) : this.root;
   }
 
@@ -29,18 +41,35 @@ public final class FpgaToolchain {
     return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("windows");
   }
 
+  private static Platform currentPlatform() {
+    if (isWindows()) return Platform.WINDOWS;
+    String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+    String arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
+    return os.startsWith("linux") && (arch.equals("loongarch64") || arch.equals("loong64"))
+        ? Platform.LOONGNIX : Platform.LEGACY;
+  }
+
+  public static boolean supportsNativeImplementation() {
+    return currentPlatform() != Platform.LEGACY;
+  }
+
   public static FpgaToolchain discover() {
+    Platform platform = currentPlatform();
     String override = System.getProperty("loongsim.fpga.runtime");
     if (override == null || override.isBlank()) override = System.getenv("LOONGSIM_FPGA_RUNTIME");
     if (override != null && !override.isBlank()) {
-      return new FpgaToolchain(Paths.get(override), isWindows());
+      Path path = Paths.get(override);
+      if (platform == Platform.LOONGNIX && Files.isRegularFile(path.resolve("usr/bin/yosys"))
+          && !Files.exists(path.resolve("runtime.properties"))) {
+        return new FpgaToolchain(path, Platform.LEGACY);
+      }
+      return new FpgaToolchain(path, platform);
     }
     for (Path root : applicationRoots()) {
-      Path candidate = root.resolve(isWindows() ? "fpga/runtime/windows-x64" : "fpga/yosys-runtime");
-      if (Files.isDirectory(candidate)) return new FpgaToolchain(candidate, isWindows());
+      Path candidate = root.resolve(platform.directory);
+      if (Files.isDirectory(candidate)) return new FpgaToolchain(candidate, platform);
     }
-    return new FpgaToolchain(Paths.get(isWindows()
-        ? "fpga/runtime/windows-x64" : "fpga/yosys-runtime"), isWindows());
+    return new FpgaToolchain(Paths.get(platform.directory), platform);
   }
 
   static List<Path> applicationRoots() {
@@ -62,15 +91,30 @@ public final class FpgaToolchain {
   }
 
   public Path getRoot() { return root; }
-  public Path yosys() { return nativeRoot.resolve(windows ? "oss-cad-suite/bin/yosys.exe" : "usr/bin/yosys"); }
-  public Path abc() { return nativeRoot.resolve(windows ? "oss-cad-suite/bin/yosys-abc.exe" : "usr/bin/berkeley-abc"); }
-  public Path yosysData() { return nativeRoot.resolve(windows ? "oss-cad-suite/share/yosys" : "usr/share/yosys"); }
-  public Path nextpnr() { return nativeRoot.resolve("openxc7/bin/nextpnr-xilinx.exe"); }
-  public Path python() { return nativeRoot.resolve("oss-cad-suite/lib/python3.exe"); }
+
+  boolean needsXilinxIoPadMapping() { return platform == Platform.LOONGNIX; }
+
+  private String yosysPrefix() {
+    if (windows) return "oss-cad-suite/";
+    return platform == Platform.LEGACY ? "usr/" : "";
+  }
+
+  private String executable(String name) { return windows ? name + ".exe" : name; }
+
+  public Path yosys() { return nativeRoot.resolve(yosysPrefix() + "bin/" + executable("yosys")); }
+  public Path abc() {
+    return nativeRoot.resolve(yosysPrefix() + "bin/"
+        + (platform == Platform.LEGACY ? "berkeley-abc" : executable("yosys-abc")));
+  }
+  public Path yosysData() { return nativeRoot.resolve(yosysPrefix() + "share/yosys"); }
+  public Path nextpnr() { return nativeRoot.resolve("openxc7/bin/" + executable("nextpnr-xilinx")); }
+  public Path python() { return nativeRoot.resolve(windows ? "oss-cad-suite/lib/python3.exe" : "bin/python3"); }
   public Path fasm2frames() { return nativeRoot.resolve("openxc7/libexec/fasm2frames"); }
-  public Path frames2bit() { return nativeRoot.resolve("openxc7/bin/xc7frames2bit.exe"); }
-  public Path loader() { return nativeRoot.resolve("oss-cad-suite/bin/openFPGALoader.exe"); }
-  public Path xilinxLoader() { return nativeRoot.resolve("loongsim/bin/openFPGALoader-xpcu.exe"); }
+  public Path frames2bit() { return nativeRoot.resolve("openxc7/bin/" + executable("xc7frames2bit")); }
+  public Path loader() { return nativeRoot.resolve(yosysPrefix() + "bin/" + executable("openFPGALoader")); }
+  public Path xilinxLoader() {
+    return windows ? nativeRoot.resolve("loongsim/bin/openFPGALoader-xpcu.exe") : loader();
+  }
   boolean hasD2xxLoader() throws IOException {
     Path buildInfo = root.resolve("loongsim/BUILD-INFO.json");
     return windows && Files.isRegularFile(buildInfo)
@@ -85,11 +129,11 @@ public final class FpgaToolchain {
     requireFile(yosys());
     requireFile(abc());
     requireFile(yosysData().resolve("xilinx/cells_sim.v"));
-    if (windows) requireIdentity();
+    if (platform != Platform.LEGACY) requireIdentity();
   }
 
   public void requireImplementation() throws IOException {
-    if (!windows) throw new IOException("本次集成的布局布线与位流工具仅支持 Windows x64");
+    if (platform == Platform.LEGACY) throw new IOException("请安装适用于当前系统的 FPGA 布局布线与位流工具");
     requireIdentity();
     for (Path file : List.of(nextpnr(), python(), fasm2frames(), frames2bit(),
         database().resolve(LoongSimBoardCatalog.DEVICE + "/part.yaml"),
@@ -99,32 +143,38 @@ public final class FpgaToolchain {
   }
 
   public void requireLoader() throws IOException {
-    if (!windows) throw new IOException("本次集成的下载工具仅支持 Windows x64");
+    if (platform == Platform.LEGACY) throw new IOException("请安装适用于当前系统的 FPGA 下载工具");
     requireIdentity();
     requireFile(loader());
     requireFile(xilinxLoader());
   }
 
   private void requireIdentity() throws IOException {
-    if (!nativeRoot.toString().matches("[\\x20-\\x7e]+")) {
+    if (windows && !nativeRoot.toString().matches("[\\x20-\\x7e]+")) {
       throw new IOException("当前磁盘未提供可用的 Windows 短路径，开源工具不能读取此中文安装目录；请将 LoongSim 移到英文目录后重试");
     }
     Properties identity = new Properties();
     Path file = root.resolve("runtime.properties");
     requireFile(file);
     try (InputStream stream = Files.newInputStream(file)) { identity.load(stream); }
-    if (!"windows-x64".equals(identity.getProperty("platform"))
-        || !"2026-10-21".equals(identity.getProperty("ossCadSuite.version"))
+    String expectedPlatform = windows ? "windows-x64" : "loongnix20-loongarch64";
+    if (!expectedPlatform.equals(identity.getProperty("platform"))
+        || (windows && !"2026-10-21".equals(identity.getProperty("ossCadSuite.version")))
+        || (!windows && !identity.getProperty("yosys.package", "").startsWith("0.8-"))
         || !"2026-10-27".equals(identity.getProperty("openxc7.version"))
         || !LoongSimBoardCatalog.DEVICE.equals(identity.getProperty("device"))) {
-      throw new IOException("FPGA 工具版本不匹配，请使用 toolchain/install-windows-tools.ps1 安装配套工具");
+      throw new IOException("FPGA 工具版本不匹配；请运行 " + installScript());
     }
   }
 
-  private static void requireFile(Path file) throws IOException {
+  private String installScript() {
+    return windows ? "toolchain/install-windows-tools.ps1" : "toolchain/build-loongnix20-tools.sh";
+  }
+
+  private void requireFile(Path file) throws IOException {
     if (!Files.isRegularFile(file)) {
       throw new IOException("FPGA 工具未安装完整，缺少 " + file
-          + "；请运行 toolchain/install-windows-tools.ps1");
+          + "；请运行 " + installScript());
     }
   }
 
@@ -135,11 +185,16 @@ public final class FpgaToolchain {
       environment.put("PATH", nativeRoot.resolve("openxc7/bin") + separator
           + nativeRoot.resolve("oss-cad-suite/bin") + separator + nativeRoot.resolve("oss-cad-suite/lib")
           + separator + path);
-      // Use the packaged pure-Python X-Ray modules, not any user's pip environment.
-      environment.put("PYTHONPATH", nativeRoot.resolve("openxc7/lib/python3.12/site-packages").toString());
+    } else if (platform == Platform.LOONGNIX) {
+      environment.put("PATH", nativeRoot.resolve("bin") + separator + path);
+    }
+    if (platform != Platform.LEGACY) {
+      // Use the Python modules packaged with the matching X-Ray tools.
+      environment.put("PYTHONPATH", nativeRoot.resolve(windows
+          ? "openxc7/lib/python3.12/site-packages" : "openxc7/lib/python").toString());
       environment.put("PYTHONNOUSERSITE", "1");
       environment.put("PYTHONUTF8", "1");
-      environment.put("OPENFPGALOADER_SOJ_DIR", nativeRoot.resolve("oss-cad-suite/share/openFPGALoader").toString());
+      environment.put("OPENFPGALOADER_SOJ_DIR", nativeRoot.resolve(yosysPrefix() + "share/openFPGALoader").toString());
       environment.remove("PYTHONHOME");
     }
     environment.put("YOSYS_DATDIR", yosysData().toString());
@@ -149,10 +204,10 @@ public final class FpgaToolchain {
   public String describe() {
     try {
       requireSynthesis();
-      if (windows) {
+      if (platform != Platform.LEGACY) {
         requireImplementation();
         requireLoader();
-        return "Windows FPGA 工具已安装（Yosys / openXC7 / openFPGALoader）";
+        return (windows ? "Windows" : "Loongnix 20") + " FPGA 工具已安装（Yosys / openXC7 / openFPGALoader）";
       }
       return "LoongArch Yosys 已找到；布局布线与下载尚未接入此平台";
     } catch (IOException exception) {

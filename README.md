@@ -14,7 +14,7 @@
 
 ## 下载与运行
 
-项目统一基于 `master` 开发和发布。当前版本 1.2.0 支持 Windows 10/11 x64，包含电路编辑、仿真及 FPGA 全流程。
+`master` 发布的 1.2.0 版本支持 Windows 10/11 x64，包含电路编辑、仿真及 FPGA 全流程。`loongnix20` 分支的构建和安装见 [Loongnix 20 移植与打包](docs/development/loongnix20.md)。
 FPGA 功能针对龙芯 A7 实验箱（XC7A200T / FBG676 / -1）。
 安装后从桌面或开始菜单启动。实验箱下载所需的驱动和厂商固件条件见[使用指南](docs/getting-started.md)。
 

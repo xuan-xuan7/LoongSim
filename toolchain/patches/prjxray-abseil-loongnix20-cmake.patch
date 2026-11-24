@@ -1,0 +1,26 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index a31c6a9..20a2701 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -16,7 +16,7 @@
+ 
+ # https://github.com/google/oss-policies-info/blob/main/foundational-cxx-support-matrix.md
+ # As of 2024-07-01, CMake 3.16 is the minimum supported version.
+-cmake_minimum_required(VERSION 3.16)
++cmake_minimum_required(VERSION 3.13)
+ 
+ # Allow the user to specify the CMAKE_MSVC_DEBUG_INFORMATION_FORMAT
+ if (POLICY CMP0141)
+diff --git a/absl/time/CMakeLists.txt b/absl/time/CMakeLists.txt
+index fe625f2..a630600 100644
+--- a/absl/time/CMakeLists.txt
++++ b/absl/time/CMakeLists.txt
+@@ -83,7 +83,7 @@ absl_cc_library(
+     Threads::Threads
+     # TODO(#1495): Use $<LINK_LIBRARY:FRAMEWORK,CoreFoundation> once our
+     # minimum CMake version >= 3.24
+-    $<$<PLATFORM_ID:Darwin,iOS,tvOS,visionOS,watchOS>:-Wl,-framework,CoreFoundation>
++    $<$<OR:$<PLATFORM_ID:Darwin>,$<PLATFORM_ID:iOS>,$<PLATFORM_ID:tvOS>,$<PLATFORM_ID:visionOS>,$<PLATFORM_ID:watchOS>>:-Wl,-framework,CoreFoundation>
+ )
+ 
+ # Internal-only target, do not depend on directly.

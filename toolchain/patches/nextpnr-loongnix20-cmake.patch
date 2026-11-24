@@ -1,0 +1,125 @@
+diff --git a/3rdparty/oourafft/CMakeLists.txt b/3rdparty/oourafft/CMakeLists.txt
+index 1aa6c09..cbef3d6 100644
+--- a/3rdparty/oourafft/CMakeLists.txt
++++ b/3rdparty/oourafft/CMakeLists.txt
+@@ -2,7 +2,7 @@ add_library(oourafft INTERFACE)
+ 
+ target_include_directories(oourafft INTERFACE .)
+ 
+-target_sources(oourafft PUBLIC
++target_sources(oourafft INTERFACE
+     fftsg.cc
+     fftsg.h
+     fftsg2d.cc
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 24de075..f2ad684 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2,7 +2,7 @@ if (CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
+     message(FATAL_ERROR "In-tree builds are not supported. Instead, run:\ncmake . -B build <options> && cmake --build build")
+ endif()
+ 
+-cmake_minimum_required(VERSION 3.25)
++cmake_minimum_required(VERSION 3.13)
+ project(nextpnr CXX)
+ 
+ if (MSVC)
+@@ -62,7 +62,7 @@ else()
+     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION FALSE)
+ endif()
+ 
+-check_cxx_compiler_hash_embed(HAS_HASH_EMBED CXX_FLAGS_HASH_EMBED)
++set(HAS_HASH_EMBED FALSE)
+ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_FLAGS_HASH_EMBED}")
+ if (EXTERNAL_CHIPDB)
+     set(BBASM_MODE "binary")
+@@ -339,7 +339,7 @@ function(add_nextpnr_architecture target)
+     )
+ 
+     target_link_libraries(nextpnr-${target}-core INTERFACE
+-        Boost::headers
++        Boost::boost
+         ${Boost_LIBRARIES}
+         Eigen3::Eigen
+         oourafft
+@@ -377,11 +377,11 @@ function(add_nextpnr_architecture target)
+ 
+     # Chip database
+ 
+-    add_library(nextpnr-${target}-bba INTERFACE EXCLUDE_FROM_ALL)
++    add_library(nextpnr-${target}-bba INTERFACE)
+ 
+     add_dependencies(nextpnr-all-bba nextpnr-${target}-bba)
+ 
+-    add_library(nextpnr-${target}-chipdb INTERFACE EXCLUDE_FROM_ALL)
++    add_library(nextpnr-${target}-chipdb INTERFACE)
+ 
+     target_link_libraries(nextpnr-${target}-core INTERFACE nextpnr-${target}-chipdb)
+ 
+diff --git a/bba/CMakeLists.txt b/bba/CMakeLists.txt
+index 437cd05..7be6163 100644
+--- a/bba/CMakeLists.txt
++++ b/bba/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-cmake_minimum_required(VERSION 3.25)
++cmake_minimum_required(VERSION 3.13)
+ project(bba CXX)
+ 
+ set(CMAKE_CXX_STANDARD 17)
+diff --git a/common/kernel/CMakeLists.txt b/common/kernel/CMakeLists.txt
+index 1f8d53c..32b955d 100644
+--- a/common/kernel/CMakeLists.txt
++++ b/common/kernel/CMakeLists.txt
+@@ -2,7 +2,7 @@ add_library(nextpnr_kernel INTERFACE)
+ 
+ target_include_directories(nextpnr_kernel INTERFACE .)
+ 
+-target_sources(nextpnr_kernel PUBLIC
++target_sources(nextpnr_kernel INTERFACE
+     arch_api.h
+     archcheck.cc
+     arch_pybindings_shared.h
+diff --git a/common/place/CMakeLists.txt b/common/place/CMakeLists.txt
+index d49d977..19a56d7 100644
+--- a/common/place/CMakeLists.txt
++++ b/common/place/CMakeLists.txt
+@@ -2,7 +2,7 @@ add_library(nextpnr_place INTERFACE)
+ 
+ target_include_directories(nextpnr_place INTERFACE .)
+ 
+-target_sources(nextpnr_place PUBLIC
++target_sources(nextpnr_place INTERFACE
+     detail_place_cfg.h
+     detail_place_core.cc
+     detail_place_core.h
+diff --git a/common/route/CMakeLists.txt b/common/route/CMakeLists.txt
+index f81a9a4..8ac67a4 100644
+--- a/common/route/CMakeLists.txt
++++ b/common/route/CMakeLists.txt
+@@ -2,7 +2,7 @@ add_library(nextpnr_route INTERFACE)
+ 
+ target_include_directories(nextpnr_route INTERFACE .)
+ 
+-target_sources(nextpnr_route PUBLIC
++target_sources(nextpnr_route INTERFACE
+     router1.cc
+     router1.h
+     router2.cc
+diff --git a/himbaechel/CMakeLists.txt b/himbaechel/CMakeLists.txt
+index cae99db..02aaeef 100644
+--- a/himbaechel/CMakeLists.txt
++++ b/himbaechel/CMakeLists.txt
+@@ -59,11 +59,11 @@ else()
+ 
+         target_sources(nextpnr-himbaechel-core INTERFACE ${arg_CORE_SOURCES})
+ 
+-        add_library(nextpnr-himbaechel-${microtarget}-bba INTERFACE EXCLUDE_FROM_ALL)
++        add_library(nextpnr-himbaechel-${microtarget}-bba INTERFACE)
+ 
+         add_dependencies(nextpnr-himbaechel-bba nextpnr-himbaechel-${microtarget}-bba)
+ 
+-        add_library(nextpnr-himbaechel-${microtarget}-chipdb INTERFACE EXCLUDE_FROM_ALL)
++        add_library(nextpnr-himbaechel-${microtarget}-chipdb INTERFACE)
+ 
+         target_link_libraries(nextpnr-himbaechel-core INTERFACE nextpnr-himbaechel-${microtarget}-chipdb)
+ 

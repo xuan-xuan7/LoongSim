@@ -9,7 +9,7 @@ Java 源码使用 JDK 11 编译；需要 JDK 11 或更高版本运行。
 .\logisim\gradlew.bat -p logisim --no-daemon run
 ```
 
-macOS / Linux 可在 `logisim/` 中执行 `./gradlew run`。电路编辑器可跨平台运行，当前集成的 FPGA 全流程及发布的安装包面向 Windows x64。
+macOS / Linux 可在 `logisim/` 中执行 `./gradlew run`。电路编辑器可跨平台运行。Loongnix 20 分支的 LoongArch64 原生工具构建与安装包见 [Loongnix 20 移植与打包](loongnix20.md)。
 
 ## 构建与测试
 
@@ -33,7 +33,7 @@ macOS / Linux 可在 `logisim/` 中执行 `./gradlew run`。电路编辑器可�
 
 ## 分支和发布文档
 
-所有功能开发、测试、文档与正式发布均基于 `master`。原纯电路分支已完成合并并停止维护，其专用打包入口已移除。
+Windows 正式版本基于 `master` 发布。`loongnix20` 分支用于 Loongnix 20 移植。原纯电路分支已完成合并并停止维护，其专用打包入口已移除。
 退役经过见[2026-11-03维护记录](../changelog/2026-11-03-master-only.md)，旧版本仅保留历史说明与源码标签。
 
 发布前把用户可感知的改动写入[未发布记录](../changelog/unreleased.md)，发布时整理为独立版本文档。

@@ -1,3 +1,4 @@
 # Preserve upstream licenses and patches byte-for-byte (including their original whitespace).
 toolchain/licenses/* -text -whitespace
 toolchain/patches/*.patch -text -whitespace
+toolchain/*loongnix20*.sh text eol=lf

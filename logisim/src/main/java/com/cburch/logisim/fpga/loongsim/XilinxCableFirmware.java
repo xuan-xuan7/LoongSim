@@ -24,16 +24,21 @@ final class XilinxCableFirmware {
     directories.add(tools.getRoot().resolve("loongsim/firmware"));
     String vivado = System.getenv("XILINX_VIVADO");
     if (vivado != null && !vivado.isBlank()) directories.add(Path.of(vivado).resolve("data/xicom"));
-    String systemDrive = System.getenv().getOrDefault("SystemDrive", "C:");
     List<Path> installations = new ArrayList<>();
-    installations.add(Path.of(systemDrive + "/Xilinx/Vivado"));
-    installations.add(Path.of(systemDrive + "/AMD/Vivado"));
-    for (String variable : List.of("ProgramFiles", "ProgramFiles(x86)")) {
-      String location = System.getenv(variable);
-      if (location != null) {
-        installations.add(Path.of(location).resolve("Xilinx/Vivado"));
-        installations.add(Path.of(location).resolve("AMD/Vivado"));
+    if (FpgaToolchain.isWindows()) {
+      String systemDrive = System.getenv().getOrDefault("SystemDrive", "C:");
+      installations.add(Path.of(systemDrive + "/Xilinx/Vivado"));
+      installations.add(Path.of(systemDrive + "/AMD/Vivado"));
+      for (String variable : List.of("ProgramFiles", "ProgramFiles(x86)")) {
+        String location = System.getenv(variable);
+        if (location != null) {
+          installations.add(Path.of(location).resolve("Xilinx/Vivado"));
+          installations.add(Path.of(location).resolve("AMD/Vivado"));
+        }
       }
+    } else {
+      installations.addAll(List.of(Path.of("/tools/Xilinx/Vivado"), Path.of("/opt/Xilinx/Vivado"),
+          Path.of("/opt/AMD/Vivado")));
     }
     for (Path installation : installations) {
       if (!Files.isDirectory(installation)) continue;

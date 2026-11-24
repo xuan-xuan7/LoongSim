@@ -24,7 +24,7 @@ public class WindowsFpgaIntegrationTest {
   @Test public void compilesLogisimClockWrapperIntoA7Bitstream() throws Exception { build(true); }
 
   @Test public void guardCircuitMatchesAllEightLedStatesBeforeAndAfterSynthesis() throws Exception {
-    assumeTrue(FpgaToolchain.isWindows()
+    assumeTrue(FpgaToolchain.supportsNativeImplementation()
         && "1".equals(System.getenv("LOONGSIM_RUN_FPGA_INTEGRATION")));
     LocaleManager.setLocale(Locale.ENGLISH);
     Path output = Path.of(System.getenv().getOrDefault("LOONGSIM_FPGA_SMOKE_DIRECTORY",
@@ -123,27 +123,29 @@ public class WindowsFpgaIntegrationTest {
     // Icarus checks the exported logic in development; it is not an application dependency.
     // Synthesis, place/route and bitstream generation still use the runtime under test.
     String simulator = System.getenv("LOONGSIM_FPGA_TEST_SIMULATOR");
-    Path bin = simulator == null || simulator.isBlank() ? tools.yosys().getParent()
+    boolean windows = FpgaToolchain.isWindows();
+    Path bin = simulator == null || simulator.isBlank() ? (windows ? tools.yosys().getParent() : Path.of("/usr/bin"))
         : WindowsNativePath.resolve(Path.of(simulator).toAbsolutePath().normalize()).resolve("bin");
-    for (String executable : java.util.List.of("iverilog.exe", "vvp.exe")) {
+    String extension = windows ? ".exe" : "";
+    for (String executable : java.util.List.of("iverilog" + extension, "vvp" + extension)) {
       if (!Files.isRegularFile(bin.resolve(executable))) {
         throw new java.io.IOException("Icarus test tools are missing; set LOONGSIM_FPGA_TEST_SIMULATOR "
             + "to the development oss-cad-suite directory: " + bin.resolve(executable));
       }
     }
     java.util.List<String> command = new java.util.ArrayList<>();
-    command.add(bin.resolve("iverilog.exe").toString());
-    command.addAll(java.util.List.of("-B", bin.resolve("../lib/ivl").normalize().toString()));
+    command.add(bin.resolve("iverilog" + extension).toString());
+    if (windows) command.addAll(java.util.List.of("-B", bin.resolve("../lib/ivl").normalize().toString()));
     command.addAll(java.util.List.of("-g2012", "-s", "tb", "-o", "truth-table-" + stage + ".vvp", "truth-table.v"));
     for (Path source : sources) command.add(source.startsWith(output) ? output.relativize(source).toString() : source.toString());
     FpgaToolProcess.run(tools, output, command, "iverilog-" + stage + ".log", null);
-    FpgaToolProcess.run(tools, output, java.util.List.of(bin.resolve("vvp.exe").toString(), "truth-table-" + stage + ".vvp"),
+    FpgaToolProcess.run(tools, output, java.util.List.of(bin.resolve("vvp" + extension).toString(), "truth-table-" + stage + ".vvp"),
         "truth-table-" + stage + ".log", null);
     assertTrue(Files.readString(output.resolve("logs/truth-table-" + stage + ".log")).contains(successMarker));
   }
 
   private static void build(boolean clock) throws Exception {
-    assumeTrue(FpgaToolchain.isWindows()
+    assumeTrue(FpgaToolchain.supportsNativeImplementation()
         && "1".equals(System.getenv("LOONGSIM_RUN_FPGA_INTEGRATION")));
     LocaleManager.setLocale(Locale.ENGLISH);
     Path base = Path.of(System.getenv().getOrDefault("LOONGSIM_FPGA_SMOKE_DIRECTORY",
@@ -173,7 +175,7 @@ public class WindowsFpgaIntegrationTest {
       FpgaBuildArtifacts.verifyImplementation(output);
       assertTrue(Files.size(output.resolve("design.bit")) > 1024);
       assertTrue(Files.size(output.resolve("timing.json")) > 0);
-      System.out.println("Native Windows FPGA build passed: " + output.resolve("design.bit"));
+      System.out.println("Native FPGA build passed: " + output.resolve("design.bit"));
     } finally {
       project.getSimulator().shutDown();
     }

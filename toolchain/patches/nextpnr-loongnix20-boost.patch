@@ -1,0 +1,9 @@
+diff --git a/himbaechel/uarch/xilinx/xilinx.cc b/himbaechel/uarch/xilinx/xilinx.cc
+--- a/himbaechel/uarch/xilinx/xilinx.cc
++++ b/himbaechel/uarch/xilinx/xilinx.cc
+@@ -1138,3 +1138,4 @@
+         std::vector<std::string> strs;
+-        boost::split(strs, line.substr(tab + 1), boost::is_any_of(";"));
++        auto prerouted = line.substr(tab + 1);
++        boost::split(strs, prerouted, boost::is_any_of(";"));
+         std::vector<PipId> pips_bound;

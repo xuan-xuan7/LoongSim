@@ -1,0 +1,12 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4a3af3f..95983d0 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,6 +1,6 @@
+ # https://github.com/google/oss-policies-info/blob/main/foundational-cxx-support-matrix.md
+ # As of 2024-07-01, CMake 3.16 is the minimum supported version.
+-cmake_minimum_required(VERSION 3.16)
++cmake_minimum_required(VERSION 3.13)
+ 
+ project(cctz)
+ 
