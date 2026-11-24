@@ -52,6 +52,7 @@ public final class UpdateDialog extends JDialog {
   private ReleaseUpdate release;
   private Path downloaded;
   private boolean installing;
+  private boolean folderOpened;
 
   public static void show(Window owner) {
     if (active != null && active.isDisplayable()) { active.toFront(); return; }
@@ -209,8 +210,21 @@ public final class UpdateDialog extends JDialog {
   private void closeWindow() {
     if (installing) return;
     if (worker != null && !worker.isDone()) worker.cancel(true);
+    if (!folderOpened) cleanupDownloadedInstaller();
     dispose();
     if (active == this) active = null;
+  }
+
+  private void cleanupDownloadedInstaller() {
+    Path file = downloaded;
+    downloaded = null;
+    if (file == null) return;
+    try {
+      Files.deleteIfExists(file);
+      Path parent = file.getParent();
+      if (parent != null) Files.deleteIfExists(parent);
+    } catch (IOException ignored) {
+    }
   }
 
   private void showFailure(Exception exception) {
@@ -238,6 +252,7 @@ public final class UpdateDialog extends JDialog {
   }
 
   private void openFolder() {
+    folderOpened = true;
     try {
       if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.OPEN)) throw new IOException();
       Desktop.getDesktop().open(downloaded.getParent().toFile());
