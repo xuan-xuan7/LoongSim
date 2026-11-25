@@ -40,10 +40,10 @@ LOONGSIM_RUN_FPGA_INTEGRATION=1 sh gradlew --no-daemon cleanTest test \
 bash toolchain/package-loongnix20.sh logisim/build/libs/LoongSim-1.2.0-java11-all.jar
 ```
 
-将 `dist/loongsim_1.2.0~loongnix20.1_loongarch64.deb` 复制到运行 Loongnix 20 的机器上，在该文件所在目录执行安装。
+将 `dist/loongsim_1.2.0~loongnix20.1_loongarch64.deb` 复制到运行 Loongnix 20 的机器上，在该文件所在目录执行安装（安装包已内置精简 Java 11 运行时与非基础共享库，支持纯离线机房直接用 `dpkg -i` 安装）。
 
 ```sh
-sudo apt install ./loongsim_1.2.0~loongnix20.1_loongarch64.deb
+sudo dpkg -i ./loongsim_1.2.0~loongnix20.1_loongarch64.deb
 ```
 
 安装后从应用菜单打开 LoongSim，或运行 `loongsim`。使用 FPGA 时先生成位流，再打开下载器检测。软件包为活动桌面用户设置了 A7 下载器的 USB 访问规则，安装后重新插入下载器。Xilinx USB 下载线如需初始化固件，可将从厂商工具取得的 HEX 文件放在 `/opt/loongsim/fpga/runtime/loongnix20-loongarch64/loongsim/firmware/` 下，或用 `LOONGSIM_XPCU_FIRMWARE` 指定具体文件。

@@ -56,4 +56,16 @@ public class FpgaToolchainTest {
     try { tools.requireSynthesis(); fail("Legacy Yosys 0.8 manifest accepted"); }
     catch (IOException expected) { assertTrue(expected.getMessage().contains("版本不匹配")); }
   }
+
+  @Test public void loongNixPrependsBundledSharedLibraryDirectoryToLdLibraryPath() throws Exception {
+    Path root = temporary.newFolder().toPath();
+    Path libDir = root.resolve("lib");
+    Files.createDirectories(libDir);
+    FpgaToolchain tools = new FpgaToolchain(root, FpgaToolchain.Platform.LOONGNIX);
+    java.util.Map<String, String> env = new java.util.HashMap<>();
+    env.put("LD_LIBRARY_PATH", "/usr/local/lib");
+    tools.configureEnvironment(env);
+    assertTrue(env.get("LD_LIBRARY_PATH").startsWith(libDir.toAbsolutePath().normalize().toString()));
+    assertTrue(env.get("LD_LIBRARY_PATH").endsWith("/usr/local/lib"));
+  }
 }

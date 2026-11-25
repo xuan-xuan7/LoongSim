@@ -185,6 +185,12 @@ public final class FpgaToolchain {
           + separator + path);
     } else if (platform == Platform.LOONGNIX) {
       environment.put("PATH", nativeRoot.resolve("bin") + separator + path);
+      Path bundledLibs = nativeRoot.resolve("lib");
+      if (Files.isDirectory(bundledLibs)) {
+        String ldPath = environment.getOrDefault("LD_LIBRARY_PATH", "");
+        environment.put("LD_LIBRARY_PATH", ldPath.isEmpty()
+            ? bundledLibs.toString() : bundledLibs + separator + ldPath);
+      }
     }
     if (platform != Platform.LEGACY) {
       // Use the Python modules packaged with the matching X-Ray tools.
