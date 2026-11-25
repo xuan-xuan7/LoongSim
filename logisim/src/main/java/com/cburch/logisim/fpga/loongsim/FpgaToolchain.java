@@ -92,8 +92,6 @@ public final class FpgaToolchain {
 
   public Path getRoot() { return root; }
 
-  boolean needsXilinxIoPadMapping() { return platform == Platform.LOONGNIX; }
-
   private String yosysPrefix() {
     if (windows) return "oss-cad-suite/";
     return platform == Platform.LEGACY ? "usr/" : "";
@@ -160,7 +158,7 @@ public final class FpgaToolchain {
     String expectedPlatform = windows ? "windows-x64" : "loongnix20-loongarch64";
     if (!expectedPlatform.equals(identity.getProperty("platform"))
         || (windows && !"2026-10-21".equals(identity.getProperty("ossCadSuite.version")))
-        || (!windows && !identity.getProperty("yosys.package", "").startsWith("0.8-"))
+        || (!windows && !"0.38".equals(identity.getProperty("yosys.version")))
         || !"2026-10-27".equals(identity.getProperty("openxc7.version"))
         || !LoongSimBoardCatalog.DEVICE.equals(identity.getProperty("device"))) {
       throw new IOException("FPGA 工具版本不匹配；请运行 " + installScript());

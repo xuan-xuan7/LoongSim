@@ -59,7 +59,7 @@ public class WindowsFpgaIntegrationTest {
   }
 
   @Test public void builtInClockAdvancesTeachingCounterAndResetsAsynchronously() throws Exception {
-    assumeTrue(FpgaToolchain.isWindows() && "1".equals(System.getenv("LOONGSIM_RUN_FPGA_INTEGRATION")));
+    assumeTrue(FpgaToolchain.supportsNativeImplementation() && "1".equals(System.getenv("LOONGSIM_RUN_FPGA_INTEGRATION")));
     Path output = Path.of(System.getenv().getOrDefault("LOONGSIM_FPGA_SMOKE_DIRECTORY",
         "../local/windows-fpga-smoke")).toAbsolutePath().normalize().resolve("内部时钟驱动教学计数器");
     LocaleManager.setLocale(Locale.ENGLISH);

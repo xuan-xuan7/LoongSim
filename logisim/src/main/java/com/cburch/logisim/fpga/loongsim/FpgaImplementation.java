@@ -189,6 +189,7 @@ public final class FpgaImplementation {
       }
     }
     boolean driverIncompatible = false;
+    boolean permissionDenied = false;
     for (String line : scan.split("\\R")) {
       String lower = line.toLowerCase(java.util.Locale.ROOT).replace("0x", "");
       if (!selection.matchesUsbLine(lower)) continue;
@@ -196,9 +197,14 @@ public final class FpgaImplementation {
           && lower.contains(cable.d2xxSerial.toLowerCase(java.util.Locale.ROOT)));
       if (sameD2xxDevice) continue;
       if (lower.contains("can't open device")) {
-        if ((lower.contains("0403:6014") || lower.contains("0403:6010") || lower.contains("03fd:"))
-            && lower.contains("error code -12")) {
-          driverIncompatible = true;
+        if (lower.contains("0403:6014") || lower.contains("0403:6010") || lower.contains("03fd:")) {
+          if (lower.contains("error code -12")) {
+            driverIncompatible = true;
+          } else if (lower.contains("error code -3")
+              || lower.contains("access denied")
+              || lower.contains("insufficient permissions")) {
+            permissionDenied = true;
+          }
         }
         continue;
       }
@@ -216,6 +222,11 @@ public final class FpgaImplementation {
           candidates.add(new DownloadCable("digilent_hs2"));
         }
       }
+    }
+    if (candidates.isEmpty() && permissionDenied) {
+      throw new IOException("系统已识别下载器，但当前用户没有 USB 设备访问权限（错误 -3）。"
+          + "请确认已安装 LoongSim 的 udev 规则（/lib/udev/rules.d/70-loongsim-a7.rules）并重新插拔下载器；"
+          + "若通过终端/SSH 使用，请确认当前用户已加入 plugdev 组。");
     }
     if (candidates.isEmpty() && driverIncompatible) {
       throw new IOException("系统已识别下载器，但 openFPGALoader 无法打开当前 USB 驱动（错误 -12）。"

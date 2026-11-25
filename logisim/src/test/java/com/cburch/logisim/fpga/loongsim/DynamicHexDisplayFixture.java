@@ -142,15 +142,13 @@ public final class DynamicHexDisplayFixture {
       throws Exception {
     Path bin = NativeTestTools.simulatorBin(tools);
     String image = "hex-" + stage + ".vvp";
-    List<String> command = new ArrayList<>(List.of(bin.resolve("iverilog.exe").toString(), "-B",
-        bin.resolve("../lib/ivl").normalize().toString(), "-g2012", "-s", "tb",
-        "-o", image, "hex-display-tb.v"));
+    List<String> command = NativeTestTools.iverilogCommand(bin, image, "hex-display-tb.v");
     for (Path source : sources) {
       command.add(source.startsWith(output) ? output.relativize(source).toString() : source.toString());
     }
     FpgaToolProcess.run(tools, output, command, "iverilog-hex-" + stage + ".log", null);
     String log = "hex-" + stage + ".log";
-    FpgaToolProcess.run(tools, output, List.of(bin.resolve("vvp.exe").toString(), image), log, null);
+    FpgaToolProcess.run(tools, output, NativeTestTools.vvpCommand(bin, image), log, null);
     assertTrue(Files.readString(output.resolve("logs").resolve(log))
         .contains("ALL_16_VALUES_ON_BOTH_MAPPED_DISPLAYS_PASSED"));
   }

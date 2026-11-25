@@ -7,7 +7,7 @@ import org.junit.Test;
 /** Scanned physical I/O is tested with electrical models and complete native bitstream builds. */
 public class MappedIoWorkflowIntegrationTest {
   private Path directory(String name) {
-    assumeTrue(FpgaToolchain.isWindows()&&"1".equals(System.getenv("LOONGSIM_RUN_FPGA_INTEGRATION")));
+    assumeTrue(FpgaToolchain.supportsNativeImplementation()&&"1".equals(System.getenv("LOONGSIM_RUN_FPGA_INTEGRATION")));
     return Path.of(System.getenv().getOrDefault("LOONGSIM_FPGA_SMOKE_DIRECTORY","../local/windows-fpga-smoke"))
         .toAbsolutePath().resolve(name);
   }

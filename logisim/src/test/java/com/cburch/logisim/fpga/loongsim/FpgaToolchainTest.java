@@ -39,4 +39,21 @@ public class FpgaToolchainTest {
     try { tools.requireImplementation(); fail("Windows manifest accepted on Loongnix"); }
     catch (IOException expected) { assertTrue(expected.getMessage().contains("版本不匹配")); }
   }
+
+  @Test public void loongNixAcceptsYosys038ManifestAndRejectsLegacy08() throws Exception {
+    Path root = temporary.newFolder().toPath();
+    FpgaToolchain tools = new FpgaToolchain(root, FpgaToolchain.Platform.LOONGNIX);
+    Files.createDirectories(root.resolve("bin"));
+    Files.createDirectories(root.resolve("share/yosys/xilinx"));
+    Files.writeString(root.resolve("bin/yosys"), "ELF");
+    Files.writeString(root.resolve("bin/yosys-abc"), "ELF");
+    Files.writeString(root.resolve("share/yosys/xilinx/cells_sim.v"), "// sim");
+    Files.writeString(root.resolve("runtime.properties"), "platform=loongnix20-loongarch64\n"
+        + "yosys.version=0.38\nopenxc7.version=2026-10-27\ndevice=xc7a200tfbg676-1\n");
+    tools.requireSynthesis();
+    Files.writeString(root.resolve("runtime.properties"), "platform=loongnix20-loongarch64\n"
+        + "yosys.package=0.8-1.1\nopenxc7.version=2026-10-27\ndevice=xc7a200tfbg676-1\n");
+    try { tools.requireSynthesis(); fail("Legacy Yosys 0.8 manifest accepted"); }
+    catch (IOException expected) { assertTrue(expected.getMessage().contains("版本不匹配")); }
+  }
 }

@@ -267,10 +267,6 @@ public final class LoongSimFpgaFlow {
     }
     script.append("hierarchy -check -top ").append(topModule).append(";\n");
     script.append("synth_xilinx -flatten -top ").append(topModule).append(";\n");
-    if (tools.needsXilinxIoPadMapping()) {
-      // Yosys 0.8 does not add the physical input and output buffers used by nextpnr.
-      script.append("iopadmap -bits -outpad OBUF I:O -inpad IBUF O:I A:top;\nclean;\n");
-    }
     script.append("check -assert;\nwrite_json yosys-netlist.json;\n");
     Files.writeString(projectDirectory.resolve("synthesis.ys"), script, StandardCharsets.UTF_8);
     report(sink, "使用内置综合工具: " + tools.yosys());

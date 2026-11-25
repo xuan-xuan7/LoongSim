@@ -41,6 +41,16 @@ public class FpgaDeviceDetectionTest {
     }
   }
 
+  @Test public void distinguishesLinuxUsbPermissionErrorFromAnUnpluggedCable() throws Exception {
+    try {
+      FpgaImplementation.cableFromScan(
+          "Error: can't open device with vid:vid = 0x0403:0x6014. Error code -3 Access denied (insufficient permissions)");
+      fail("USB permission failure was accepted");
+    } catch (IOException expected) {
+      assertTrue(expected.getMessage().contains("权限"));
+    }
+  }
+
   @Test public void usesWindowsFtdiDriverWhenLibusbCannotOpenDigilent() throws Exception {
     String usb = "Error: can't open device with vid:vid = 0x0403:0x6014. Error code -12";
     String d2xx = "LoongSim D2XX digilent_hs2 210251A08870";

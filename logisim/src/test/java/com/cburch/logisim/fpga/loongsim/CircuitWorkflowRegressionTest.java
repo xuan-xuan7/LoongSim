@@ -48,7 +48,7 @@ public class CircuitWorkflowRegressionTest {
     }
   }
   @Test public void exportedAndSynthesizedLogicMatchesTheCircuitAndBuildsBitstream() throws Exception {
-    assumeTrue(FpgaToolchain.isWindows()&&"1".equals(System.getenv("LOONGSIM_RUN_FPGA_INTEGRATION")));
+    assumeTrue(FpgaToolchain.supportsNativeImplementation()&&"1".equals(System.getenv("LOONGSIM_RUN_FPGA_INTEGRATION")));
     Path base=Path.of(System.getenv().getOrDefault("LOONGSIM_FPGA_SMOKE_DIRECTORY","../local/windows-fpga-smoke"));
     Path directory=base.toAbsolutePath().resolve("组合电路回归").resolve(scenario);Files.createDirectories(directory);
     try(WorkflowCircuit fixture=new WorkflowCircuit(scenario)) {
@@ -134,13 +134,11 @@ public class CircuitWorkflowRegressionTest {
   }
   private void simulateHdl(Path directory,List<Path> sources,String stage) throws Exception {
     FpgaToolchain tools=FpgaToolchain.discover();
-    String override=System.getenv("LOONGSIM_FPGA_TEST_SIMULATOR");
-    Path bin=override==null?tools.yosys().getParent():WindowsNativePath.resolve(Path.of(override)).resolve("bin");
-    List<String> command=new ArrayList<>(List.of(bin.resolve("iverilog.exe").toString(),"-B",bin.resolve("../lib/ivl").normalize().toString(),
-        "-g2012","-s","tb","-o","workflow-"+stage+".vvp","workflow-tb.v"));
+    Path bin=NativeTestTools.simulatorBin(tools);
+    List<String> command=NativeTestTools.iverilogCommand(bin,"workflow-"+stage+".vvp","workflow-tb.v");
     for(Path source:sources)command.add(source.startsWith(directory)?directory.relativize(source).toString():source.toString());
     FpgaToolProcess.run(tools,directory,command,"iverilog-"+stage+".log",null);
-    FpgaToolProcess.run(tools,directory,List.of(bin.resolve("vvp.exe").toString(),"workflow-"+stage+".vvp"),"truth-table-"+stage+".log",null);
+    FpgaToolProcess.run(tools,directory,NativeTestTools.vvpCommand(bin,"workflow-"+stage+".vvp"),"truth-table-"+stage+".log",null);
     assertTrue(Files.readString(directory.resolve("logs/truth-table-"+stage+".log")).contains("WORKFLOW_VECTORS_PASSED"));
   }
 }

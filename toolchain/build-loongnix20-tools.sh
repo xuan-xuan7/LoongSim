@@ -16,12 +16,9 @@ work=${LOONGSIM_LOONGNIX_BUILD_DIR:-"$repo/local/loongnix20-build"}
 runtime=$(realpath -m -- "${LOONGSIM_FPGA_RUNTIME:-$repo/fpga/runtime/loongnix20-loongarch64}")
 cmake=${CMAKE:-cmake}
 jobs=${JOBS:-2}
-yosys_version=$(dpkg-query -W -f='${Version}' yosys)
-abc_version=$(dpkg-query -W -f='${Version}' berkeley-abc)
-if [[ $yosys_version != 0.8-* ]]; then
-    echo "Use the Loongnix 20 Yosys 0.8 package for this runtime." >&2
-    exit 1
-fi
+yosys_version=0.38
+yosys_revision=543faed9c8c5b10fb19cfbc57d504114c4ed98b0
+abc_revision=896e5e7dedf9b9b1459fa019f1fa8aa8101fdf43
 nextpnr_revision=ab72e722965617898fc9220fe419a63a3f94878b
 xray_revision=317fdc1319a225f57b6a0e6993a37d1a4ae75e5a
 fasm_revision=2f57ccb1727a120e8cacbb95c578f3c71bdcc95a
@@ -77,6 +74,8 @@ apply_tool_patch() {
     fi
 }
 
+checkout yosys https://github.com/YosysHQ/yosys.git "$yosys_revision"
+checkout abc https://github.com/YosysHQ/abc.git "$abc_revision"
 checkout nextpnr https://github.com/openXC7/nextpnr.git "$nextpnr_revision"
 checkout prjxray https://github.com/openXC7/prjxray.git "$xray_revision"
 checkout fasm https://github.com/openXC7/fasm.git "$fasm_revision"
@@ -87,9 +86,12 @@ src="$work/src"
 submodules "$src/prjxray" third_party/abseil-cpp third_party/cctz third_party/googletest \
     third_party/gflags third_party/yaml-cpp
 
-install -m755 /usr/bin/yosys /usr/bin/berkeley-abc "$stage/bin/"
-cp -a /usr/share/yosys "$stage/share/"
-ln -s berkeley-abc "$stage/bin/yosys-abc"
+rm -rf "$src/yosys/abc"
+ln -s "$src/abc" "$src/yosys/abc"
+make -C "$src/yosys" -j"$jobs" CONFIG=gcc ENABLE_TCL=0 ENABLE_READLINE=0 ENABLE_PLUGINS=0 \
+    ENABLE_PYOSYS=0 ENABLE_ZLIB=1 ENABLE_ABC=1 \
+    ABC_ARCHFLAGS="-DLIN64 -DSIZEOF_VOID_P=8 -DSIZEOF_LONG=8 -DSIZEOF_INT=4 -DABC_USE_STDINT_H" \
+    PREFIX="$stage" install
 ln -s /usr/bin/python3 "$stage/bin/python3"
 
 # Extract only architecture-independent data from the pinned release.
@@ -130,9 +132,8 @@ apply_tool_patch "$src/openFPGALoader" openfpgaloader-v1.2.0-xpcu.patch
 "$cmake" --build "$work/build-loader" --parallel "$jobs"
 install -m755 "$work/build-loader/openFPGALoader" "$stage/bin/"
 
-for source in yosys berkeley-abc; do
-    install -m644 "/usr/share/doc/$source/copyright" "$stage/share/licenses/$source.txt"
-done
+install -m644 "$src/yosys/COPYING" "$stage/share/licenses/yosys.txt"
+install -m644 "$src/abc/copyright.txt" "$stage/share/licenses/abc.txt"
 install -m644 "$src/nextpnr/COPYING" "$stage/share/licenses/nextpnr.txt"
 for source in prjxray fasm pyyaml openFPGALoader; do
     install -m644 "$src/$source/LICENSE" "$stage/share/licenses/$source.txt"
@@ -141,8 +142,9 @@ install -m644 "$repo/toolchain/patches/openfpgaloader-v1.2.0-xpcu.patch" "$stage
 cat > "$stage/runtime.properties" <<EOF
 platform=loongnix20-loongarch64
 device=xc7a200tfbg676-1
-yosys.package=$yosys_version
-abc.package=$abc_version
+yosys.version=$yosys_version
+yosys.revision=$yosys_revision
+abc.revision=$abc_revision
 openxc7.version=2026-10-27
 nextpnr.revision=$nextpnr_revision
 prjxray.revision=$xray_revision

@@ -15,7 +15,7 @@ if [[ $architecture != loongarch64 ]] || ! grep -qx 'VersionID=20' /etc/loongnix
 fi
 grep -qx 'platform=loongnix20-loongarch64' "$runtime/runtime.properties"
 grep -qx 'device=xc7a200tfbg676-1' "$runtime/runtime.properties"
-version=${LOONGSIM_DEB_VERSION:-1.1.0~loongnix20.1}
+version=${LOONGSIM_DEB_VERSION:-1.2.0~loongnix20.1}
 dpkg --validate-version "$version"
 output=${LOONGSIM_DEB_OUTPUT:-"$repo/dist"}
 mkdir -p "$output"
@@ -52,9 +52,19 @@ Terminal=false
 Categories=Education;Electronics;
 EOF
 cat > "$pkg/lib/udev/rules.d/70-loongsim-a7.rules" <<'EOF'
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="03fd", ATTR{idProduct}=="0007|0008|000d|0013", TAG+="uaccess"
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="0403", ATTR{idProduct}=="6010", ATTR{manufacturer}=="Digilent", TAG+="uaccess"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="03fd", ATTR{idProduct}=="0007|0008|000d|0013", GROUP="plugdev", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="0403", ATTR{idProduct}=="6010|6011|6014", ATTR{manufacturer}=="Digilent", GROUP="plugdev", MODE="0660", TAG+="uaccess"
 EOF
+
+cat > "$pkg/DEBIAN/postinst" <<'EOF'
+#!/bin/sh
+set -e
+if command -v udevadm >/dev/null 2>&1; then
+    udevadm control --reload-rules >/dev/null 2>&1 || true
+    udevadm trigger --subsystem-match=usb >/dev/null 2>&1 || true
+fi
+EOF
+chmod 755 "$pkg/DEBIAN/postinst"
 
 cat > "$work/debian/control" <<'EOF'
 Source: loongsim

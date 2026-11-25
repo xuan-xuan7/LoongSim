@@ -79,11 +79,10 @@ final class SegmentHardwareFixture {
           +"release dut.loongsim_scan_divider; release dut.hexValue; $display(\"ALL_128_SEGMENT_PATTERNS_AND_16_HEX_DIGITS_PASSED\"); $finish; end endmodule";
       Files.writeString(output.resolve("modes-tb.v"),tb);
       FpgaToolchain tools=FpgaToolchain.discover(); Path bin=NativeTestTools.simulatorBin(tools);
-      List<String> command=new ArrayList<>(List.of(bin.resolve("iverilog.exe").toString(),"-B",bin.resolve("../lib/ivl").normalize().toString(),
-          "-g2012","-s","tb","-o","modes.vvp","modes-tb.v"));
+      List<String> command=NativeTestTools.iverilogCommand(bin,"modes.vvp","modes-tb.v");
       command.addAll(Files.readAllLines(output.resolve("sources.list")));
       FpgaToolProcess.run(tools,output,command,"iverilog-modes.log",System.out::println);
-      FpgaToolProcess.run(tools,output,List.of(bin.resolve("vvp.exe").toString(),"modes.vvp"),"modes-truth.log",System.out::println);
+      FpgaToolProcess.run(tools,output,NativeTestTools.vvpCommand(bin,"modes.vvp"),"modes-truth.log",System.out::println);
       // A second mapping leaves g unconnected in digit 2, and uses only g in digit 3.
       mapping.put("seg6", "digit[3].g");
       flow.completeMapping(output,exported.getTopModule(),exported.getPorts(),mapping,null);
@@ -92,7 +91,7 @@ final class SegmentHardwareFixture {
           .replace("ALL_128_SEGMENT_PATTERNS_AND_16_HEX_DIGITS_PASSED", "PARTIAL_DIGITS_KEEP_UNCONNECTED_SEGMENTS_OFF_PASSED");
       Files.writeString(output.resolve("modes-tb.v"),tb);
       FpgaToolProcess.run(tools,output,command,"iverilog-partial.log",System.out::println);
-      FpgaToolProcess.run(tools,output,List.of(bin.resolve("vvp.exe").toString(),"modes.vvp"),"partial-truth.log",System.out::println);
+      FpgaToolProcess.run(tools,output,NativeTestTools.vvpCommand(bin,"modes.vvp"),"partial-truth.log",System.out::println);
       flow.runYosys(output,exported.getTopModule(),null); System.out.println("SEGMENT_MODES_SYNTHESIS_PASSED");
       new FpgaImplementation().buildBitstream(output,exported.getTopModule(),null);
       FpgaBuildArtifacts.verifyImplementation(output); System.out.println("SEGMENT_MODES_BITSTREAM_PASSED "+Files.size(output.resolve("design.bit")));

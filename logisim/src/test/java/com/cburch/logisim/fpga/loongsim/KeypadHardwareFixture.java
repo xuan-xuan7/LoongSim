@@ -83,11 +83,10 @@ final class KeypadHardwareFixture {
           +"$display(\"GHOST_RECTANGLE_SUPPRESSION_AND_RECOVERY_PASSED\"); contacts=0; settle; check(0); $finish; end endmodule";
       Files.writeString(output.resolve("keypad-tb.v"),tb);
       FpgaToolchain tools=FpgaToolchain.discover(); Path bin=NativeTestTools.simulatorBin(tools);
-      List<String> command=new ArrayList<>(List.of(bin.resolve("iverilog.exe").toString(),"-B",bin.resolve("../lib/ivl").normalize().toString(),
-          "-g2012","-s","tb","-o","keypad.vvp","keypad-tb.v"));
+      List<String> command=NativeTestTools.iverilogCommand(bin,"keypad.vvp","keypad-tb.v");
       command.addAll(Files.readAllLines(output.resolve("sources.list")));
       FpgaToolProcess.run(tools,output,command,"iverilog-keypad.log",System.out::println);
-      FpgaToolProcess.run(tools,output,List.of(bin.resolve("vvp.exe").toString(),"keypad.vvp"),"keypad-truth.log",System.out::println);
+      FpgaToolProcess.run(tools,output,NativeTestTools.vvpCommand(bin,"keypad.vvp"),"keypad-truth.log",System.out::println);
       flow.runYosys(output,exported.getTopModule(),null); System.out.println("KEYPAD_AND_DISPLAY_SYNTHESIS_PASSED");
       new FpgaImplementation().buildBitstream(output,exported.getTopModule(),null);
       FpgaBuildArtifacts.verifyImplementation(output); System.out.println("KEYPAD_AND_DISPLAY_BITSTREAM_PASSED "+Files.size(output.resolve("design.bit")));
