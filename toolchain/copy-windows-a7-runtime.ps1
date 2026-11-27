@@ -87,6 +87,17 @@ function Get-ExclusionReason([string]$path) {
         return 'Unused formal verification or alternate HDL frontend extension'
     }
     if ($path -match '^oss-cad-suite/examples/') { return 'Upstream standalone tool examples' }
+    if ($path -match '^oss-cad-suite/lib/python3\.11/(test|idlelib|tkinter|turtledemo|distutils|lib2to3|unittest|ensurepip|pydoc_data|venv|site-packages)/') {
+        return 'Unused Python test, GUI, packaging or third-party modules'
+    }
+    if ($path -match '(^|/)__pycache__/') { return 'Regenerable Python bytecode cache' }
+    if ($path -match '^oss-cad-suite/lib/(tcl8\.6|qt6|gdk-pixbuf-2\.0|pkgconfig)/') {
+        return 'Unused Tcl script library, GUI plugin or pkg-config metadata'
+    }
+    if ($path -match '^oss-cad-suite/include/python3\.11/') { return 'Unused Python C development headers' }
+    if ($path -match '^oss-cad-suite/share/(icons|man|glib-2\.0|mime|doc)/') {
+        return 'Unused GUI icons, manpages or desktop metadata'
+    }
     return $null
 }
 
@@ -118,7 +129,7 @@ foreach ($path in $required) {
     }
 }
 $summary = [ordered]@{
-    schema=1; profile='loongson-a7-flow-tools-v2'; device='xc7a200tfbg676-1'
+    schema=1; profile='loongson-a7-flow-tools-v3'; device='xc7a200tfbg676-1'
     rulesSha256=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
     sourceFileCount=$files.Count; keptFileCount=$keptCount; removedFileCount=$removed.Count
     sourceBytes=$sourceBytes; keptBytes=$keptBytes; removedBytes=($sourceBytes-$keptBytes)
